@@ -4,7 +4,6 @@
  Tiago Gonçalves nº51729 */
 
 
-#include <errno.h>
 #include <signal.h>
 #include <netinet/in.h>
 #include <stdio.h>
@@ -12,7 +11,6 @@
 #include <string.h>
 #include <sys/types.h>
 #include <sys/socket.h>
-#include <netinet/in.h>
 #include <stdint.h>
 #include <inttypes.h>
 #include <arpa/inet.h>
@@ -22,12 +20,19 @@
 #include "network_server.h"
 #include "message.h"
 #include "table.h"
+#include "inet.h"
+#include <errno.h>
+#include <poll.h>
+#include <fcntl.h>
 
+#define NFDESC 10 // Numero de sockets (uma para listening)
+#define TIMEOUT 50 // em milisegundos
 
 int sockfd, connsockfd;
 struct sockaddr_in server, client;
-int nbytes, opt;
+int nbytes, opt, kfds, nfds;
 socklen_t size_client;
+struct pollfd connections[NFDESC];
 
 /* Função para preparar uma socket de receção de pedidos de ligação
  * num determinado porto.
@@ -61,15 +66,11 @@ int network_server_init(short port){
         close(sockfd);
         return -1;
     }
+    
 
     return sockfd;
 }
-static volatile int keepRunning = 1;
 
-//TODO meter este num .h
-void INThandler(int sig){
-    keepRunning = 0;
-}
 
 /* Esta função deve:
  * - Aceitar uma conexão de um cliente;
@@ -80,43 +81,64 @@ void INThandler(int sig){
  */
 int network_main_loop(int listening_socket){
     signal(SIGPIPE, SIG_IGN);
-    signal(SIGQUIT, INThandler);
-    signal(SIGINT, INThandler);
+    signal(SIGQUIT, SIG_DFL);
+    signal(SIGINT, SIG_DFL);
     printf("Servidor à espera de dados.. %d\n",sockfd);
-    while((connsockfd = accept(listening_socket,(struct sockaddr *) &client, &size_client)) != 1){
-        while(keepRunning){
 
-            signal(SIGQUIT, INThandler);
-            signal(SIGINT, INThandler);
-
-            printf("Ligação aceite:		%d\n", connsockfd);
-            printf("A aguardar mensagem do cliente...\n");
-
-            // get request message from client
-            struct message_t *msg = network_receive(connsockfd);
-
-            signal(SIGQUIT, INThandler);
-            signal(SIGINT, INThandler);
-
-            if(invoke(msg) != 0){
-                free_message_t(msg);
-                perror("Erro ao construir mensagem de resposta");
-                close(connsockfd);
-                return -1;
-            }
-
-            if(network_send(connsockfd, msg) < 0){
-                free_message_t(msg);
-                perror("Erro ao enviar dados ao cliente");
-                close(connsockfd);
-                return -1;
-            }
-            free_message_t(msg);
-        }
-        printf(" fez break\n");
-        close(connsockfd);
-        break;
+    for (int i = 0; i < NFDESC; i++){
+        connections[i].fd = -1;    // poll ignora estruturas com fd < 0
     }
+
+    connections[0].fd = sockfd;  // Vamos detetar eventos na welcoming socket
+    connections[0].events = POLLIN; 
+
+    nfds = 1; // numero de file descriptors
+
+    while(1){
+        while ((kfds = poll(connections, nfds, TIMEOUT)) >= 0){
+        if (kfds > 0){ // kfds eh o numero de descritores com evento ou erro
+
+            if ((connections[0].revents & POLLIN) && (nfds < NFDESC)){  // Pedido na listening socket ?
+                if ((connections[nfds].fd = accept(connections[0].fd, (struct sockaddr *) &client, &size_client)) > 0){ // Ligacao feita ?
+                    connections[nfds].events = POLLIN; // Vamos esperar dados nesta socket
+                    nfds++;
+                }
+            }
+            for (int i = 1; i < nfds; i++){// Todas as ligacoes
+                if (connections[i].revents & POLLIN) { // Dados para ler ?
+                    // get request message from client
+                    struct message_t *msg = network_receive(connections[i].fd);
+
+                    if(msg==NULL){
+                        close(connections[i].fd);
+                        //remover elemento
+                        nfds--;
+                    }
+                    else{
+                        if(invoke(msg) != 0){
+                            free_message_t(msg);
+                            perror("Erro ao construir mensagem de resposta");
+                            close(connections[i].fd);
+                            return -1;
+                        }
+
+                        if(network_send(connections[i].fd, msg) < 0){
+                            free_message_t(msg);
+                            perror("Erro ao enviar dados ao cliente");
+                            close(connections[i].fd);
+                            return -1;
+                        }
+                    }
+                    free_message_t(msg);
+                }
+                if(connections[i].revents & (POLLERR | POLLHUP)){
+                     close(connections[i].fd);
+                     //remover elemento
+                }
+            }
+        }
+    }       
+}
     return 0;
 }
 
