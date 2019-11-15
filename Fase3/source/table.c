@@ -2,7 +2,6 @@
  Carlos Caritas nº51728
  Carlos Marques nº51964
  Tiago Gonçalves nº51729 */
-
 #include <stdlib.h>
 #include <string.h>
 #include "table.h"

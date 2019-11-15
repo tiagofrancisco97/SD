@@ -2,7 +2,6 @@
  Carlos Caritas nº51728
  Carlos Marques nº51964
  Tiago Gonçalves nº51729 */
-
 #include "sdmessage.pb-c.h"
 #include "message.h"
 #include "client_stub-private.h"

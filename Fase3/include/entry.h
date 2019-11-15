@@ -3,7 +3,6 @@
  Carlos Marques nº51964
  Tiago Gonçalves nº51729 */
 
-
 #ifndef _ENTRY_H
 #define _ENTRY_H /* Módulo entry */
 

@@ -3,7 +3,6 @@
  Carlos Marques nº51964
  Tiago Gonçalves nº51729 */
 
-
 #ifndef _TABLE_PRIVATE_H
 #define _TABLE_PRIVATE_H
 

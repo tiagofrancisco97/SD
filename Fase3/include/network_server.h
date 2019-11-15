@@ -3,8 +3,6 @@
  Carlos Marques nº51964
  Tiago Gonçalves nº51729 */
 
-
-
 #ifndef _NETWORK_SERVER_H
 #define _NETWORK_SERVER_H
 

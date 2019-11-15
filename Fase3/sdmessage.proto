@@ -8,6 +8,7 @@ message message_t
                 OP_GET     = 30;
                 OP_PUT     = 40;
                 OP_GETKEYS = 50;
+                OP_VERIFY  = 60;
                 OP_ERROR   = 99;
         }
         Opcode opcode = 1;

@@ -3,7 +3,6 @@
  Carlos Marques nº51964
  Tiago Gonçalves nº51729 */
 
-
 #include "sdmessage.pb-c.h"
 #include "message.h"
 #include <errno.h>
@@ -12,7 +11,7 @@
 #include <string.h>
 #include <unistd.h>
 
-//TODO documentaçao
+
 int write_all(int sock, char *buf, int len) {
     if (buf == NULL){
         return -1;

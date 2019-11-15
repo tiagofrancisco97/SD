@@ -3,8 +3,8 @@
  Carlos Marques nº51964
  Tiago Gonçalves nº51729 */
 
-#ifndef PROJETOSD_CLIENT_STUB_PRIVATE_H
-#define PROJETOSD_CLIENT_STUB_PRIVATE_H
+#ifndef _CLIENT_STUB_PRIVATE_H
+#define _CLIENT_STUB_PRIVATE_H
 
 #include <netinet/in.h>
 
@@ -14,4 +14,4 @@ struct rtable_t{
 };
 
 
-#endif //PROJETOSD_CLIENT_STUB_PRIVATE_H
+#endif 

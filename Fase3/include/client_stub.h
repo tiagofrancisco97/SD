@@ -56,4 +56,7 @@ char **rtable_get_keys(struct rtable_t *rtable);
  */
 void rtable_free_keys(char **keys);
 
+/* Verifica se a operação identificada por op_n foi executada.
+*/
+int rtable_verify(struct rtable_t *rtable, int op_n);
 #endif

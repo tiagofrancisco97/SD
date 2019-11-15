@@ -3,7 +3,6 @@
  Carlos Marques nº51964
  Tiago Gonçalves nº51729 */
 
-
 #ifndef _LIST_H
 #define _LIST_H /* Módulo list */
 

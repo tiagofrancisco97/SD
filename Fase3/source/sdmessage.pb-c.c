@@ -10,8 +10,8 @@
 void   message_t__init
                      (MessageT         *message)
 {
-    static const MessageT init_value = MESSAGE_T__INIT;
-    *message = init_value;
+  static const MessageT init_value = MESSAGE_T__INIT;
+  *message = init_value;
 }
 size_t message_t__get_packed_size
                      (const MessageT *message)
@@ -52,7 +52,7 @@ void   message_t__free_unpacked
   assert(message->base.descriptor == &message_t__descriptor);
   protobuf_c_message_free_unpacked ((ProtobufCMessage*)message, allocator);
 }
-static const ProtobufCEnumValue message_t__opcode__enum_values_by_number[7] =
+static const ProtobufCEnumValue message_t__opcode__enum_values_by_number[8] =
 {
   { "OP_BAD", "MESSAGE_T__OPCODE__OP_BAD", 0 },
   { "OP_SIZE", "MESSAGE_T__OPCODE__OP_SIZE", 10 },
@@ -60,20 +60,22 @@ static const ProtobufCEnumValue message_t__opcode__enum_values_by_number[7] =
   { "OP_GET", "MESSAGE_T__OPCODE__OP_GET", 30 },
   { "OP_PUT", "MESSAGE_T__OPCODE__OP_PUT", 40 },
   { "OP_GETKEYS", "MESSAGE_T__OPCODE__OP_GETKEYS", 50 },
+  { "OP_VERIFY", "MESSAGE_T__OPCODE__OP_VERIFY", 60 },
   { "OP_ERROR", "MESSAGE_T__OPCODE__OP_ERROR", 99 },
 };
 static const ProtobufCIntRange message_t__opcode__value_ranges[] = {
-{0, 0},{10, 1},{20, 2},{30, 3},{40, 4},{50, 5},{99, 6},{0, 7}
+{0, 0},{10, 1},{20, 2},{30, 3},{40, 4},{50, 5},{60, 6},{99, 7},{0, 8}
 };
-static const ProtobufCEnumValueIndex message_t__opcode__enum_values_by_name[7] =
+static const ProtobufCEnumValueIndex message_t__opcode__enum_values_by_name[8] =
 {
   { "OP_BAD", 0 },
   { "OP_DEL", 2 },
-  { "OP_ERROR", 6 },
+  { "OP_ERROR", 7 },
   { "OP_GET", 3 },
   { "OP_GETKEYS", 5 },
   { "OP_PUT", 4 },
   { "OP_SIZE", 1 },
+  { "OP_VERIFY", 6 },
 };
 const ProtobufCEnumDescriptor message_t__opcode__descriptor =
 {
@@ -82,11 +84,11 @@ const ProtobufCEnumDescriptor message_t__opcode__descriptor =
   "Opcode",
   "MessageT__Opcode",
   "",
-  7,
+  8,
   message_t__opcode__enum_values_by_number,
-  7,
+  8,
   message_t__opcode__enum_values_by_name,
-  7,
+  8,
   message_t__opcode__value_ranges,
   NULL,NULL,NULL,NULL   /* reserved[1234] */
 };

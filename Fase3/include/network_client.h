@@ -3,7 +3,6 @@
  Carlos Marques nº51964
  Tiago Gonçalves nº51729 */
 
-
 #ifndef _NETWORK_CLIENT_H
 #define _NETWORK_CLIENT_H
 

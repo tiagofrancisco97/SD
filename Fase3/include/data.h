@@ -3,7 +3,6 @@
  Carlos Marques nº51964
  Tiago Gonçalves nº51729 */
 
-
 #ifndef _DATA_H
 #define _DATA_H /* Módulo data */
 

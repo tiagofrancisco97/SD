@@ -3,7 +3,6 @@
  Carlos Marques nº51964
  Tiago Gonçalves nº51729 */
 
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

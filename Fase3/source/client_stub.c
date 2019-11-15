@@ -3,7 +3,6 @@
  Carlos Marques nº51964
  Tiago Gonçalves nº51729 */
 
-
 #include "client_stub.h"
 #include "client_stub-private.h"
 #include "data.h"
@@ -273,10 +272,6 @@ char **rtable_get_keys(struct rtable_t *rtable){
     request.keys = NULL;
     request.n_keys = 0;
 
-    if(request.n_keys < 0){
-        return NULL;
-    }
-
     struct message_t *req = MTom(&request);
     if (req == NULL){
         return NULL;
@@ -284,6 +279,11 @@ char **rtable_get_keys(struct rtable_t *rtable){
 
     struct message_t *response = network_send_receive(rtable, req);
     if (response == NULL || response->opcode == MESSAGE_T__OPCODE__OP_ERROR){
+        free_message_t(response);
+        return NULL;
+    }
+
+    if (response->n_keys == 0){
         free_message_t(response);
         return NULL;
     }
@@ -302,4 +302,45 @@ void rtable_free_keys(char **keys){
         i++;
     }
     free(keys);
+}
+
+/* Verifica se a operação identificada por op_n foi executada.
+*/
+int rtable_verify(struct rtable_t *rtable, int op_n){
+    if (rtable == NULL){
+        return NULL;
+    }
+
+    struct _MessageT request;
+
+    message_t__init(&request);
+
+    request.opcode = MESSAGE_T__OPCODE__OP_VERIFY;
+    request.c_type = MESSAGE_T__C_TYPE__CT_NONE;
+    //vou enviar pelo datasize porque quero mandar um int e nao vou precisar dele para outra coisa
+    request.data_size = op_n;
+
+    request.data = NULL;
+    request.key = NULL;
+    request.keys = NULL;
+    request.n_keys = 0;
+
+    struct message_t *req = MTom(&request);
+    if (req == NULL){
+        return NULL;
+    }
+
+    struct message_t *response = network_send_receive(rtable, req);
+    if (response == NULL || response->opcode == MESSAGE_T__OPCODE__OP_ERROR){
+        free_message_t(response);
+        return NULL;
+    }
+
+    if(response->opcode == MESSAGE_T__OPCODE__OP_VERIFY + 1){
+        free_message_t(response);
+        return 0;
+    } else {
+        free_message_t(response);
+        return -1;
+    }
 }

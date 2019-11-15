@@ -2,9 +2,6 @@
  Carlos Caritas nº51728
  Carlos Marques nº51964
  Tiago Gonçalves nº51729 */
-
-
-
 #include "table_skel.h"
 #include "message.h"
 #include "data.h"
@@ -13,6 +10,12 @@
 #include <string.h>
 
 struct table_t *tabela;
+
+int last_assigned = 0;
+int op_code = 0;
+struct task_t *queue_head;
+pthread_mutex_t queue_lock, table_lock;
+pthread_cond_t queue_not_empty;
 
 /* Inicia o skeleton da tabela.
  * O main() do servidor deve chamar esta função antes de poder usar a
@@ -101,17 +104,44 @@ int invoke(struct message_t *msg){
             return 0;
 
         case MESSAGE_T__OPCODE__OP_GETKEYS:
-            keys= table_get_keys(tabela);
+            keys = table_get_keys(tabela);
             msg->opcode = MESSAGE_T__OPCODE__OP_GETKEYS+1;
             msg->c_type = MESSAGE_T__C_TYPE__CT_KEYS;
 
             int size = table_size(tabela);
             msg->n_keys = size;
-            msg->keys = malloc(sizeof(char*) * size);
-            for (int i = 0; i < size; i++){
-                msg->keys[i] = (keys[i]);
+            if (size > 0) {
+                msg->keys = malloc(sizeof(char *) * size);
+                for (int i = 0; i < size; i++) {
+                    msg->keys[i] = strdup(keys[i]);
+                }
+            }
+            table_free_keys(keys);
+            return 0;
+
+        case MESSAGE_T__OPCODE__OP_VERIFY:
+            result = verify(msg->data_size);
+            if (result == 0){
+                msg->opcode = MESSAGE_T__OPCODE__OP_VERIFY + 1;
+            } else if (result == -1){
+                msg->opcode = MESSAGE_T__OPCODE__OP_ERROR;
             }
             return 0;
     }
     return -1;
+}
+
+/* Verifica se a operação identificada por op_n foi executada.
+*/
+int verify(int op_n){
+    //O quer dizer operaçao realizda
+    //-1 quer dizer erro
+    //1 quer dizer que nao foi realizada
+    return 0;
+}
+
+/* Função do thread secundário que vai processar pedidos de escrita.
+*/
+void * process_task (void *params){
+
 }
