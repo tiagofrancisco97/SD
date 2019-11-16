@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "pthread.h"
 
 struct table_t *tabela;
 
@@ -134,10 +135,30 @@ int invoke(struct message_t *msg){
 /* Verifica se a operação identificada por op_n foi executada.
 */
 int verify(int op_n){
+    if(queue_head ==NULL){
+        return -1;
+    }
+    struct task_t *task= NULL;//malloc(sizeof(struct task_t*));
+    struct task_t *atual = queue_head;
+    while(atual!=NULL){
+        if(op_n ==atual->op_n){
+            task= atual;
+        }
+        atual=atual->next;
+    }
+
+    if(task!=NULL){
+        if(task->op==0){ //delete
+            return (table_get(tabela,task->key)==NULL)? 0 : 1;
+        }else {
+            return (table_get(tabela,task->key)!=NULL && 
+                    strcmp(table_get(tabela,task->key),task->data))? 0 : 1;
+        }
+    }
     //O quer dizer operaçao realizda
     //-1 quer dizer erro
     //1 quer dizer que nao foi realizada
-    return 0;
+    return -1;
 }
 
 /* Função do thread secundário que vai processar pedidos de escrita.

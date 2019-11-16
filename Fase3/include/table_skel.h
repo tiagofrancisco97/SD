@@ -15,6 +15,7 @@ struct task_t {
     char* key; //a chave a remover ou adicionar
     char* data; // os dados a adicionar em caso de put, ou NULL em caso de delete
 //adicionar campo(s) necessário(s) para implementar fila do tipo produtor/consumidor
+    struct task_t *next;	
 };
 
 /* Inicia o skeleton da tabela.
