@@ -121,9 +121,10 @@ int rtable_put(struct rtable_t *rtable, struct entry_t *entry){
         free_message_t(response);
         return -1;
     }
+    int r=response->data_size;
 
     free_message_t(response);
-    return 0;
+    return r;
 }
 
 /* Função para obter um elemento da tabela.

@@ -25,7 +25,7 @@ pthread_cond_t queue_not_empty;
  * Retorna 0 (OK) ou -1 (erro, por exemplo OUT OF MEMORY)
  */
 int table_skel_init(int n_lists){
-
+    queue_head=NULL;
     if(n_lists < 1){
         return -1;
     }
@@ -69,13 +69,24 @@ int invoke(struct message_t *msg){
             return 0;
 
         case MESSAGE_T__OPCODE__OP_DEL:
-            result = table_del(tabela, msg->key);
-            if(result == 0 ){
+            //data = data_create2(msg->data_size, msg->data);
+            result=insereTask(0,msg->key,NULL);
+            if(result != -1 ){
                 msg->opcode = MESSAGE_T__OPCODE__OP_DEL + 1;
+                msg->c_type=MESSAGE_T__C_TYPE__CT_RESULT;
+                msg->data_size = result;
             } else{
                 msg->opcode = MESSAGE_T__OPCODE__OP_ERROR;
+                msg->c_type = MESSAGE_T__C_TYPE__CT_NONE;
             }
-            msg->c_type = MESSAGE_T__C_TYPE__CT_NONE;
+            /*result = table_del(tabela, msg->key);
+            if(result == 0 ){
+                msg->opcode = MESSAGE_T__OPCODE__OP_DEL + 1;
+                msg->c_type=MESSAGE_T__C_TYPE__CT_RESULT;
+            } else{
+                msg->opcode = MESSAGE_T__OPCODE__OP_ERROR;
+                msg->c_type = MESSAGE_T__C_TYPE__CT_NONE;
+            }*/
             return 0;
 
         case MESSAGE_T__OPCODE__OP_GET:
@@ -93,15 +104,25 @@ int invoke(struct message_t *msg){
             return 0;
 
         case MESSAGE_T__OPCODE__OP_PUT:
-            data = data_create2(msg->data_size, msg->data);
-            result = table_put(tabela, msg->key, data);
+            //data = data_create2(msg->data_size, msg->data);
+            result=insereTask(1,msg->key,msg->data);
+            if(result != -1 ){
+                msg->opcode = MESSAGE_T__OPCODE__OP_PUT + 1;
+                msg->c_type=MESSAGE_T__C_TYPE__CT_RESULT;
+                msg->data_size = result;
+            } else{
+                msg->opcode = MESSAGE_T__OPCODE__OP_ERROR;
+                msg->c_type = MESSAGE_T__C_TYPE__CT_NONE;
+            }
+
+            /*result = table_put(tabela, msg->key, data);
             free(data);
             if(result == 0){
                 msg->opcode = MESSAGE_T__OPCODE__OP_PUT+1;
             } else{
                 msg->opcode = MESSAGE_T__OPCODE__OP_ERROR;
             }
-            msg->c_type = MESSAGE_T__C_TYPE__CT_NONE;
+            msg->c_type = MESSAGE_T__C_TYPE__CT_NONE;*/
             return 0;
 
         case MESSAGE_T__OPCODE__OP_GETKEYS:
@@ -165,4 +186,31 @@ int verify(int op_n){
 */
 void * process_task (void *params){
 
+}
+
+/*Insere uma task na queue
+ * Retorna o numero da op da task em caso de sucesso, -1 em caso de erro
+ */
+int insereTask(int op,char* key, char *data){
+    if(key==NULL || data==NULL){
+        return -1;
+    }
+    struct task_t* t= malloc(sizeof(struct task_t*));
+    t->op_n=last_assigned;
+    t->key=key;
+    if(op==0){//delete
+        t->op=0;
+    }else{//insert
+        t->op=1;
+        t->data=data;
+    }
+    if(queue_head==NULL){
+            queue_head=t;
+    } else{ //errado, esta a guardar no inicio e nao no final da fila
+        t->next=queue_head;
+        queue_head=t;
+    }
+    last_assigned++;
+    return queue_head->op_n;
+    //return -1;
 }

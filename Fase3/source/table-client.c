@@ -114,10 +114,10 @@ int main(int argc, char **argv){
                 free(entry);
                 free(data);
 
-                if(i == 0){
-                    printf("Elemento introduzido\n");
+                if(i != -1){
+                    printf("Operação com codigo %d\n", i);
                 }else{
-                    printf("Elemento nao introduzido\n");
+                    printf("Erro na operação\n");
                 }
             }
             free(dados);
