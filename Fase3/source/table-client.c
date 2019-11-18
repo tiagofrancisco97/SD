@@ -56,10 +56,10 @@ int main(int argc, char **argv){
             }
             if (key != NULL) {
                 int i = rtable_del(rtable, key);
-                if (i == 0) {
-                    printf("Elemento removido\n");
+                if (i != -1) {
+                    printf("Operação com o codigo %d\n", i);
                 } else {
-                    printf("Chave nao encontrada\n");
+                    printf("Erro na operação\n");
                 }
             } else {
                 printf("Escreva um comando valido:\ndel <key>\n");

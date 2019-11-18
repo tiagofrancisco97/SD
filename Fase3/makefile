@@ -1,6 +1,7 @@
 CC = gcc
 CFLAGS = $(CC) -g -Wall -I $(INC) -c 
 PROTOFLAG = -I/usr/local/include -L/usr/local/lib -lprotobuf-c
+THREADFLAG = -lpthread
 
 BIN = binary/
 INC = include/
@@ -27,7 +28,7 @@ table-client: $(TABLE_CLIENT)
 	$(CC) $(LIB)cliente-lib.o $(TABLE_CLIENT) $(PROTOFLAG) -o $(BIN)table-client
 
 table-server: $(TABLE_SERVER)
-	$(CC) $(TABLE_SERVER) $(PROTOFLAG) -o $(BIN)table-server
+	$(CC) $(TABLE_SERVER) $(PROTOFLAG) $(THREADFLAG) -o $(BIN)table-server
 
 clean:
 	rm -f $(BIN)*

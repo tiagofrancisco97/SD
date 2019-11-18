@@ -210,9 +210,9 @@ int rtable_del(struct rtable_t *rtable, char *key){
         free_message_t(response);
         return -1;
     }
-
+    int r = response->data_size;
     free_message_t(response);
-    return 0;
+    return r;
 }
 
 /* Devolve o número de elementos contidos na tabela.
