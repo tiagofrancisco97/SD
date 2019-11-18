@@ -25,6 +25,7 @@ pthread_cond_t queue_not_empty;
  * Retorna 0 (OK) ou -1 (erro, por exemplo OUT OF MEMORY)
  */
 int table_skel_init(int n_lists){
+    pthread_t thread;
     //queue_head=NULL;
     if(n_lists < 1){
         return -1;
@@ -35,16 +36,13 @@ int table_skel_init(int n_lists){
     }
 
     /* criação de nova thread */
-	if (pthread_create(&queue_lock, NULL, &process_task, NULL) != 0){
+	if (pthread_create(&thread, NULL, &process_task, NULL) != 0){
 		perror("\nThread não criada.\n");
 		exit(EXIT_FAILURE);
 	}
     pthread_mutex_init(&queue_lock, NULL);
     pthread_mutex_init(&table_lock, NULL);
     pthread_cond_init(&queue_not_empty, NULL);
-
-    //pthread_join(&queue_lock,NULL);
-    
     return 0;
 }
 
@@ -83,7 +81,6 @@ int invoke(struct message_t *msg){
         case MESSAGE_T__OPCODE__OP_DEL:
             //data = data_create2(msg->data_size, msg->data);
             result=insereTask(0,msg->key,NULL);
-                            printf("result da op del =%d\n",result);
 
             if(result != -1 ){
                 msg->opcode = MESSAGE_T__OPCODE__OP_DEL + 1;
@@ -192,13 +189,6 @@ int verify(int op_n){
                     strcmp(table_get(tabela,task->key),task->data))? 0 : 1;
         }
     }
-    //printf("%s e value %s\n", queue_head->key, queue_head->data);
-    /*if(queue_head->op==0){ //delete
-            return (table_get(tabela,queue_head->key)==NULL)? 0 : 1;
-        }else {
-            return (table_get(tabela,queue_head->key)!=NULL && 
-                    strcmp(table_get(tabela,queue_head->key),queue_head->data))? 0 : 1;
-        }*/
     //O quer dizer operaçao realizda
     //-1 quer dizer erro
     //1 quer dizer que nao foi realizada
@@ -220,13 +210,17 @@ void * process_task (void *params){
             while(atual!=NULL){
                 if(atual->op==0){//del
                     if(atual->key!=NULL){
+                        pthread_mutex_lock(&table_lock);
                         table_del(tabela, atual->key);
+                        pthread_mutex_unlock(&table_lock);
                         op_count++;
                     }
                 }else{ //insert
                     if(atual->key!=NULL && atual->data!=NULL ){
-                        printf("A inserir key %s com value %s\n", atual->key, atual->data);
-                        table_put(tabela, atual->key, data_create2(strlen(atual->data)+1, atual->data));
+                        //printf("A inserir key %s com value %s\n", atual->key, atual->data);
+                        pthread_mutex_lock(&table_lock);
+                        table_put(tabela, atual->key, data_create2(strlen(atual->data), atual->data));
+                        pthread_mutex_unlock(&table_lock);
                         op_count++;
                     }
                 }
@@ -234,30 +228,10 @@ void * process_task (void *params){
             }
             queue_head=atual;
             pthread_mutex_unlock(&queue_lock);
-            /*if(atual==NULL){
-                printf("OLA\n");
-                break;
-            }*/
         }
 
 
     }
-    //pthread_mutex_unlock(&queue_lock); 
-    /*pthread_cond_wait(&queue_not_empty, &queue_lock);
-    if(queue_head!=NULL){
-        printf("inserindo key %s e value %s\n", queue_head->key, queue_head->data);
-
-        struct task_t *atual = queue_head;
-        while(atual!=NULL){
-            table_put(tabela, atual->key, data_create2(strlen(atual->data), atual->data));
-            if(atual->next!=NULL){
-                atual=atual->next;;      
-            }break;
-            //atual=atual->next;
-        }
-        int result = table_put(tabela, queue_head->key, data_create2(strlen(queue_head->data), queue_head->data));
-    }*/
-    
 }
 
 /*Insere uma task na queue
@@ -279,27 +253,24 @@ int insereTask(int op,char* key, char *data){
             return -1;
         }
         t->op=1;
-        t->data=malloc(strlen(data)+1);
+        t->data=malloc(strlen(data));
         strcpy(t->data,data);
-        printf("inserindo no taks value %s \n", t->data);
+        //printf("inserindo no taks value %s \n", t->data);
     }
     pthread_mutex_lock(&queue_lock);
     if(queue_head==NULL){
             queue_head=t;
             t->next=NULL;
-            printf("inserindo no taks key %s \n", queue_head->key);
+            //printf("inserindo no taks key %s \n", queue_head->key);
 
-    } else{ //errado, esta a guardar no inicio e nao no final da fila
-        //t->next=queue_head;
-        //queue_head=t;
-
+    } else{ 
         struct task_t *atual=queue_head;
         while(atual->next!=NULL){
             atual=atual->next;
         }
         atual->next=t;
         t->next=NULL;
-        printf("inserindo no taks key %s \n", atual->next->key);
+        //printf("inserindo no taks key %s \n", atual->next->key);
 
     }
     last_assigned++;

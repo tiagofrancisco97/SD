@@ -28,7 +28,7 @@
 #define NFDESC 10 // Numero de sockets (uma para listening)
 #define TIMEOUT 50 // em milisegundos
 
-int sockfd, connsockfd;
+int sockfd;
 struct sockaddr_in server, client;
 int nbytes, opt, kfds, nfds;
 socklen_t size_client;
@@ -61,16 +61,36 @@ int network_server_init(short port){
         return -1;
     }
 
+    // Faz listen. Marca a socket como sendo welcoming socket. Função *LISTEN*.
     if (listen(sockfd, 0) < 0){
         perror("Erro ao executar listen\n");
         close(sockfd);
         return -1;
     }
-    
 
     return sockfd;
 }
 
+//TODO doc e meter isto no .h
+void sort_sockets(int index){
+    for (int i = index; i <= nfds - index; i++){
+        if(i == nfds - 1){
+            connections[i].fd = -1;
+        } else {
+            connections[i].fd = connections[i+1].fd;
+            connections[i].events = connections[i+1].events;
+            connections[i].revents = connections[i+1].revents;
+        }
+    }
+    nfds--;
+}
+
+static volatile int keepRunning = 1;
+
+//TODO meter este num .h
+void INThandler(int sig){
+    keepRunning = 0;
+}
 
 /* Esta função deve:
  * - Aceitar uma conexão de um cliente;
@@ -81,64 +101,73 @@ int network_server_init(short port){
  */
 int network_main_loop(int listening_socket){
     signal(SIGPIPE, SIG_IGN);
-    signal(SIGQUIT, SIG_DFL);
-    signal(SIGINT, SIG_DFL);
-    printf("Servidor à espera de dados.. %d\n",sockfd);
+    signal(SIGQUIT, INThandler);
+    signal(SIGINT, INThandler);
+
+    printf("Servidor à espera de dados..\n");
+    size_client = sizeof(struct sockaddr);
 
     for (int i = 0; i < NFDESC; i++){
         connections[i].fd = -1;    // poll ignora estruturas com fd < 0
     }
 
-    connections[0].fd = sockfd;  // Vamos detetar eventos na welcoming socket
-    connections[0].events = POLLIN; 
+    connections[0].fd = listening_socket;  // Vamos detetar eventos na welcoming socket
+    connections[0].events = POLLIN;
 
     nfds = 1; // numero de file descriptors
 
-    while(1){
+    while(keepRunning){
         while ((kfds = poll(connections, nfds, TIMEOUT)) >= 0){
-        if (kfds > 0){ // kfds eh o numero de descritores com evento ou erro
+            if (kfds > 0){ // kfds eh o numero de descritores com evento ou erro
 
-            if ((connections[0].revents & POLLIN) && (nfds < NFDESC)){  // Pedido na listening socket ?
-                if ((connections[nfds].fd = accept(connections[0].fd, (struct sockaddr *) &client, &size_client)) > 0){ // Ligacao feita ?
-                    connections[nfds].events = POLLIN; // Vamos esperar dados nesta socket
-                    nfds++;
+                if ((connections[0].revents & POLLIN) && (nfds < NFDESC)){  // Pedido na listening socket ?
+                    if ((connections[nfds].fd = accept(connections[0].fd, (struct sockaddr *) &client, &size_client)) > 0){ // Ligacao feita ?
+                        connections[nfds].events = POLLIN; // Vamos esperar dados nesta socket
+                        nfds++;
+                    }
                 }
-            }
-            for (int i = 1; i < nfds; i++){// Todas as ligacoes
-                if (connections[i].revents & POLLIN) { // Dados para ler ?
-                    // get request message from client
-                    struct message_t *msg = network_receive(connections[i].fd);
+                for (int i = 1; i < nfds; i++){// Todas as ligacoes
+                    if (connections[i].revents & POLLIN) { // Dados para ler ?
+                        // get request message from client
+                        struct message_t *msg = network_receive(connections[i].fd);
 
-                    if(msg==NULL){
+                        if(msg == NULL || msg->opcode == MESSAGE_T__OPCODE__OP_BAD || msg->c_type == MESSAGE_T__C_TYPE__CT_BAD){
+                            close(connections[i].fd);
+                            //puxo os sockets da frente subsituindo pelo da casa a seguir para todos
+                            //faço nfds--
+                            sort_sockets(i);
+                            //como puxei os sockets, tenho de fazer o da casa para onde puxei outra vez
+                            i--;
+                        }
+                        else{
+                            if(invoke(msg) != 0){
+                                free_message_t(msg);
+                                perror("Erro ao construir mensagem de resposta");
+                                close(connections[i].fd);
+                                return -1;
+                            }
+
+                            if(network_send(connections[i].fd, msg) < 0){
+                                free_message_t(msg);
+                                perror("Erro ao enviar dados ao cliente");
+                                close(connections[i].fd);
+                                return -1;
+                            }
+                        }
+                        free_message_t(msg);
+                    }
+                    if(connections[i].revents & (POLLERR | POLLHUP)){
                         close(connections[i].fd);
-                        //remover elemento
-                        nfds--;
+                        //puxo os sockets da frente subsituindo pelo da casa a seguir para todos
+                        //faço nfds--
+                        sort_sockets(i);
+                        //como puxei os sockets, tenho de fazer o da casa para onde puxei outra vez
+                        i--;
                     }
-                    else{
-                        if(invoke(msg) != 0){
-                            free_message_t(msg);
-                            perror("Erro ao construir mensagem de resposta");
-                            close(connections[i].fd);
-                            return -1;
-                        }
-
-                        if(network_send(connections[i].fd, msg) < 0){
-                            free_message_t(msg);
-                            perror("Erro ao enviar dados ao cliente");
-                            close(connections[i].fd);
-                            return -1;
-                        }
-                    }
-                    free_message_t(msg);
-                }
-                if(connections[i].revents & (POLLERR | POLLHUP)){
-                     close(connections[i].fd);
-                     //remover elemento
                 }
             }
         }
-    }       
-}
+    }
     return 0;
 }
 

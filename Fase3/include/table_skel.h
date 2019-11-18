@@ -8,6 +8,7 @@
 
 #include "sdmessage.pb-c.h"
 #include "table.h"
+#include "table_skel-private.h"
 
 struct task_t {
     int op_n; //o número da operação
