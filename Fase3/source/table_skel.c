@@ -13,7 +13,7 @@
 struct table_t *tabela;
 
 int last_assigned = 0;
-int op_count = 0;
+int op_count = -1;
 struct task_t *queue_head;
 pthread_mutex_t queue_lock, table_lock;
 pthread_cond_t queue_not_empty;
@@ -157,7 +157,7 @@ int invoke(struct message_t *msg){
             result = verify(msg->data_size);
             if (result == 0){
                 msg->opcode = MESSAGE_T__OPCODE__OP_VERIFY + 1;
-            } else if (result == -1){
+            } else{
                 msg->opcode = MESSAGE_T__OPCODE__OP_ERROR;
             }
             return 0;
@@ -168,31 +168,9 @@ int invoke(struct message_t *msg){
 /* Verifica se a operação identificada por op_n foi executada.
 */
 int verify(int op_n){
-    if(queue_head ==NULL){
-        return -1;
-    }
-    struct task_t *task;//= NULL;//malloc(sizeof(struct task_t*));
-    struct task_t *atual = queue_head;
-    while(atual!=NULL){
-        if(op_n ==atual->op_n){
-           task=atual;  
-           break;      
-        }
-        atual=atual->next;
-    }
-
-    if(task!=NULL){
-        if(task->op==0){ //delete
-            return (table_get(tabela,task->key)==NULL)? 0 : 1;
-        }else {
-            return (table_get(tabela,task->key)!=NULL && 
-                    strcmp(table_get(tabela,task->key),task->data))? 0 : 1;
-        }
-    }
     //O quer dizer operaçao realizda
-    //-1 quer dizer erro
     //1 quer dizer que nao foi realizada
-    return -1;
+    return op_n<=op_count? 0 : 1;
 }
 
 /* Função do thread secundário que vai processar pedidos de escrita.
@@ -207,6 +185,7 @@ void * process_task (void *params){
         if(queue_head!=NULL){
 
             struct task_t *atual = queue_head;
+	    struct task_t *head = queue_head;
             while(atual!=NULL){
                 if(atual->op==0){//del
                     if(atual->key!=NULL){
@@ -219,7 +198,7 @@ void * process_task (void *params){
                     if(atual->key!=NULL && atual->data!=NULL ){
                         //printf("A inserir key %s com value %s\n", atual->key, atual->data);
                         pthread_mutex_lock(&table_lock);
-                        table_put(tabela, atual->key, data_create2(strlen(atual->data), atual->data));
+                        table_put(tabela, atual->key, data_create2(strlen(atual->data)+1, atual->data));
                         pthread_mutex_unlock(&table_lock);
                         op_count++;
                     }
@@ -243,7 +222,7 @@ int insereTask(int op,char* key, char *data){
     }
     struct task_t* t=(struct task_t*) malloc(sizeof(*t));
     t->op_n=last_assigned;
-    t->key=malloc(strlen(key));
+    t->key=malloc(strlen(key)+1);
     t->next=NULL;
     strcpy(t->key,key);
     if(op==0){//delete
@@ -253,7 +232,7 @@ int insereTask(int op,char* key, char *data){
             return -1;
         }
         t->op=1;
-        t->data=malloc(strlen(data));
+        t->data=malloc(strlen(data)+1);
         strcpy(t->data,data);
         //printf("inserindo no taks value %s \n", t->data);
     }
