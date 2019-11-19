@@ -63,7 +63,7 @@ struct message_t *network_send_receive(struct rtable_t *rtable,
 
     int nbytes;
 
-    if((nbytes = write_all(sockfd, &len, sizeof(len))) != sizeof(len)){
+    if((nbytes = write_all(sockfd,(char *) &len, sizeof(len))) != sizeof(len)){
         free_message_t(msg);
         free(buf);
         perror("Erro ao enviar dados ao servidor");
@@ -71,7 +71,7 @@ struct message_t *network_send_receive(struct rtable_t *rtable,
         return NULL;
     }
 
-    if((nbytes = write_all(sockfd, buf, len)) != len){
+    if((nbytes = write_all(sockfd,(char *) buf, len)) != len){
         free_message_t(msg);
         free(buf);
         perror("Erro ao enviar dados ao servidor");
@@ -83,7 +83,7 @@ struct message_t *network_send_receive(struct rtable_t *rtable,
 
     int recv_len;
 
-    if((nbytes = read_all(sockfd, &recv_len, sizeof(recv_len))) != sizeof(recv_len)){
+    if((nbytes = read_all(sockfd,(char *) &recv_len, sizeof(recv_len))) != sizeof(recv_len)){
         free_message_t(msg);
         free(buf);
         perror("Erro ao receber dados do servidor");
@@ -104,7 +104,7 @@ struct message_t *network_send_receive(struct rtable_t *rtable,
 
     MessageT *recv_msg;
 
-    recv_msg = message_t__unpack(NULL, recv_len, recv_buf);
+    recv_msg = message_t__unpack(NULL, recv_len,(uint8_t *) recv_buf);
     if (recv_msg == NULL) {
         free_message_t(msg);
         free(buf);

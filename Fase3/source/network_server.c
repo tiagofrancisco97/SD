@@ -183,7 +183,7 @@ struct message_t *network_receive(int client_socket){
 
     int len;
 
-    if((nbytes = read_all(client_socket,&len, sizeof(len))) < 0){
+    if((nbytes = read_all(client_socket,(char *) &len, sizeof(len))) < 0){
         perror("Erro ao receber dados do cliente");
         close(client_socket);
     }
@@ -197,7 +197,7 @@ struct message_t *network_receive(int client_socket){
 
     MessageT *m ;
 
-    m = message_t__unpack(NULL, nbytes,str);
+    m = message_t__unpack(NULL, nbytes,(uint8_t *) str);
     if(m == NULL){
         return NULL;
     }
@@ -216,12 +216,12 @@ int network_send(int client_socket, struct message_t *msg){
     MessageT m = mToM(msg);
     int len = message_t__get_packed_size(&m);
     char *buf = malloc(len);
-    message_t__pack(&m, buf);
+    message_t__pack(&m,(uint8_t *) buf);
     if(buf == NULL){
         return -1;
     }
 
-    if(write_all(client_socket,&len, sizeof(len)) != sizeof(len)){
+    if(write_all(client_socket,(char *) &len, sizeof(len)) != sizeof(len)){
         perror("Erro ao enviar dados do cliente");
         close(client_socket);
         return -1;

@@ -329,13 +329,13 @@ int rtable_verify(struct rtable_t *rtable, int op_n){
     struct message_t *req = MTom(&request);
     if (req == NULL){
         return -1;
-    }printf("OLA\n");
+    }
 
     struct message_t *response = network_send_receive(rtable, req);
     if (response == NULL || response->opcode == MESSAGE_T__OPCODE__OP_ERROR){
         free_message_t(response);
         return -1;
-    }printf("OLA\n");
+    }
 
     if(response->opcode == MESSAGE_T__OPCODE__OP_VERIFY + 1){
         free_message_t(response);

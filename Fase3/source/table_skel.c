@@ -26,7 +26,6 @@ pthread_cond_t queue_not_empty;
  */
 int table_skel_init(int n_lists){
     pthread_t thread;
-    //queue_head=NULL;
     if(n_lists < 1){
         return -1;
     }
@@ -80,7 +79,10 @@ int invoke(struct message_t *msg){
 
         case MESSAGE_T__OPCODE__OP_DEL:
             //data = data_create2(msg->data_size, msg->data);
-            result=insereTask(0,msg->key,NULL);
+            result=-1;
+            if(table_get(tabela,msg->key)!=NULL){
+                result=insereTask(0,msg->key,NULL);
+            }
 
             if(result != -1 ){
                 msg->opcode = MESSAGE_T__OPCODE__OP_DEL + 1;
@@ -185,7 +187,6 @@ void * process_task (void *params){
         if(queue_head!=NULL){
 
             struct task_t *atual = queue_head;
-	    struct task_t *head = queue_head;
             while(atual!=NULL){
                 if(atual->op==0){//del
                     if(atual->key!=NULL){
@@ -196,13 +197,14 @@ void * process_task (void *params){
                     }
                 }else{ //insert
                     if(atual->key!=NULL && atual->data!=NULL ){
-                        //printf("A inserir key %s com value %s\n", atual->key, atual->data);
                         pthread_mutex_lock(&table_lock);
                         table_put(tabela, atual->key, data_create2(strlen(atual->data)+1, atual->data));
                         pthread_mutex_unlock(&table_lock);
                         op_count++;
                     }
                 }
+                free(atual->data);
+                free(atual->key);
                 atual=atual->next;
             }
             queue_head=atual;

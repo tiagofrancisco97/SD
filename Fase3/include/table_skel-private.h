@@ -3,8 +3,8 @@
  Carlos Marques nº51964
  Tiago Gonçalves nº51729 */
 
-#ifndef _TABLE_SKEL_H
-#define _TABLE_SKEL_H
+#ifndef _TABLE_SKEL_PRIVATE_H
+#define _TABLE_SKEL_PRIVATE_H
 
 #include "sdmessage.pb-c.h"
 #include "table.h"
