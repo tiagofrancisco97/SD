@@ -17,6 +17,8 @@ int op_count = -1;
 struct task_t *queue_head;
 pthread_mutex_t queue_lock, table_lock;
 pthread_cond_t queue_not_empty;
+pthread_t thread;
+
 
 /* Inicia o skeleton da tabela.
  * O main() do servidor deve chamar esta função antes de poder usar a
@@ -25,7 +27,6 @@ pthread_cond_t queue_not_empty;
  * Retorna 0 (OK) ou -1 (erro, por exemplo OUT OF MEMORY)
  */
 int table_skel_init(int n_lists){
-    pthread_t thread;
     if(n_lists < 1){
         return -1;
     }
@@ -42,6 +43,7 @@ int table_skel_init(int n_lists){
     pthread_mutex_init(&queue_lock, NULL);
     pthread_mutex_init(&table_lock, NULL);
     pthread_cond_init(&queue_not_empty, NULL);
+    
     return 0;
 }
 
@@ -79,10 +81,7 @@ int invoke(struct message_t *msg){
 
         case MESSAGE_T__OPCODE__OP_DEL:
             //data = data_create2(msg->data_size, msg->data);
-            result=-1;
-            if(table_get(tabela,msg->key)!=NULL){
-                result=insereTask(0,msg->key,NULL);
-            }
+            result=insereTask(0,msg->key,NULL);
 
             if(result != -1 ){
                 msg->opcode = MESSAGE_T__OPCODE__OP_DEL + 1;
@@ -182,8 +181,8 @@ void * process_task (void *params){
         pthread_mutex_lock(&queue_lock); 
         while(queue_head==NULL){
             pthread_cond_wait(&queue_not_empty,&queue_lock);
-
         }
+        
         if(queue_head!=NULL){
 
             struct task_t *atual = queue_head;
@@ -198,16 +197,20 @@ void * process_task (void *params){
                 }else{ //insert
                     if(atual->key!=NULL && atual->data!=NULL ){
                         pthread_mutex_lock(&table_lock);
-                        table_put(tabela, atual->key, data_create2(strlen(atual->data)+1, atual->data));
+                        struct data_t *d=data_create2(strlen(atual->data)+1, atual->data);
+                        table_put(tabela, atual->key, d);
                         pthread_mutex_unlock(&table_lock);
+                        data_destroy(d);
                         op_count++;
                     }
                 }
-                free(atual->data);
                 free(atual->key);
+                struct task_t *a = atual;
                 atual=atual->next;
+                free(a);
             }
             queue_head=atual;
+            
             pthread_mutex_unlock(&queue_lock);
         }
 
@@ -252,8 +255,8 @@ int insereTask(int op,char* key, char *data){
         atual->next=t;
         t->next=NULL;
         //printf("inserindo no taks key %s \n", atual->next->key);
-
     }
+
     last_assigned++;
     pthread_cond_signal(&queue_not_empty);
     pthread_mutex_unlock(&queue_lock);
