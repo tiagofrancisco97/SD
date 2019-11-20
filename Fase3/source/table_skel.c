@@ -19,7 +19,6 @@ pthread_mutex_t queue_lock, table_lock;
 pthread_cond_t queue_not_empty;
 pthread_t thread;
 
-
 /* Inicia o skeleton da tabela.
  * O main() do servidor deve chamar esta função antes de poder usar a
  * função invoke(). O parâmetro n_lists define o número de listas a
@@ -210,11 +209,9 @@ void * process_task (void *params){
                 free(a);
             }
             queue_head=atual;
-            
-            pthread_mutex_unlock(&queue_lock);
+
         }
-
-
+        pthread_mutex_unlock(&queue_lock);
     }
 }
 
