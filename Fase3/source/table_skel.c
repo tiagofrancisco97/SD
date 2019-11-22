@@ -209,7 +209,6 @@ void * process_task (void *params){
                 free(a);
             }
             queue_head=atual;
-
         }
         pthread_mutex_unlock(&queue_lock);
     }

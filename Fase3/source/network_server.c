@@ -25,21 +25,21 @@
 #include <poll.h>
 #include <fcntl.h>
 
-#define NFDESC 10 // Numero de sockets (uma para listening)
+#define NFDESC 20 // Numero de sockets (uma para listening)
 #define TIMEOUT 50 // em milisegundos
 
 int sockfd;
 struct sockaddr_in server, client;
 int nbytes, opt, kfds, nfds;
 socklen_t size_client;
-struct pollfd connections[NFDESC];
+struct pollfd *connections;
+int n=2;
 
 /* Função para preparar uma socket de receção de pedidos de ligação
  * num determinado porto.
  * Retornar descritor do socket (OK) ou -1 (erro).
  */
 int network_server_init(short port){
-
     if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0 ) {
         perror("Erro ao criar socket");
         return -1;
@@ -67,6 +67,7 @@ int network_server_init(short port){
         close(sockfd);
         return -1;
     }
+    connections=malloc(NFDESC * sizeof(struct pollfd*));
 
     return sockfd;
 }
@@ -120,10 +121,15 @@ int network_main_loop(int listening_socket){
         while ((kfds = poll(connections, nfds, TIMEOUT)) >= 0){
             if (kfds > 0){ // kfds eh o numero de descritores com evento ou erro
 
-                if ((connections[0].revents & POLLIN) && (nfds < NFDESC)){  // Pedido na listening socket ?
+                if ((connections[0].revents & POLLIN) ){  // Pedido na listening socket ?
                     if ((connections[nfds].fd = accept(connections[0].fd, (struct sockaddr *) &client, &size_client)) > 0){ // Ligacao feita ?
                         connections[nfds].events = POLLIN; // Vamos esperar dados nesta socket
                         nfds++;
+                        if(nfds == ((n-1)*NFDESC)-1){
+                            struct pollfd *new= realloc(connections, (n*NFDESC) *sizeof(struct pollfd *));
+                            connections=new;
+                            n++;
+                        }
                     }
                 }
                 for (int i = 1; i < nfds; i++){// Todas as ligacoes
@@ -240,7 +246,7 @@ int network_send(int client_socket, struct message_t *msg){
  * network_server_init().
  */
 int network_server_close(){
+    free(connections);
     table_skel_destroy();
     return close(sockfd);
 }
-
