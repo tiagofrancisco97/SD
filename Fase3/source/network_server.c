@@ -25,7 +25,7 @@
 #include <poll.h>
 #include <fcntl.h>
 
-#define NFDESC 20 // Numero de sockets (uma para listening)
+#define NFDESC 100 // Numero de sockets (uma para listening)
 #define TIMEOUT 50 // em milisegundos
 
 int sockfd;
@@ -126,6 +126,7 @@ int network_main_loop(int listening_socket){
                         connections[nfds].events = POLLIN; // Vamos esperar dados nesta socket
                         nfds++;
                         if(nfds == ((n-1)*NFDESC)-1){
+                            printf("Realocando as coneccoes para um vetor maior ...\n");
                             struct pollfd *new= realloc(connections, (n*NFDESC) *sizeof(struct pollfd *));
                             connections=new;
                             n++;

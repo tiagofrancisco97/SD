@@ -18,6 +18,7 @@ struct task_t *queue_head;
 pthread_mutex_t queue_lock, table_lock;
 pthread_cond_t queue_not_empty;
 pthread_t thread;
+int run=1;
 
 /* Inicia o skeleton da tabela.
  * O main() do servidor deve chamar esta função antes de poder usar a
@@ -52,6 +53,9 @@ void table_skel_destroy(){
     if(tabela != NULL){
         table_destroy(tabela);
     }
+    run=0;
+    pthread_cond_signal(&queue_not_empty);
+    pthread_join(thread,NULL);
 }
 
 /* Executa uma operação na tabela (indicada pelo opcode contido em msg)
@@ -179,7 +183,11 @@ void * process_task (void *params){
     while(1){
         pthread_mutex_lock(&queue_lock); 
         while(queue_head==NULL){
+            printf("A espera de tasks ...\n");
             pthread_cond_wait(&queue_not_empty,&queue_lock);
+            if(!run){
+                return;
+            }
         }
         
         if(queue_head!=NULL){
