@@ -80,7 +80,6 @@ int rtable_disconnect(struct rtable_t *rtable){
     if (rtable == NULL){
         return -1;
     }
-    printf("Vai dar free da rtable\n");
     free(rtable);
     return 0;
 }
