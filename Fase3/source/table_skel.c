@@ -55,7 +55,10 @@ void table_skel_destroy(){
     }
     run=0;
     pthread_cond_signal(&queue_not_empty);
-    pthread_join(thread,NULL);
+    if (pthread_join(thread,NULL) != 0){
+		perror("\nErro no join.\n");
+		exit(EXIT_FAILURE);
+	}
 }
 
 /* Executa uma operação na tabela (indicada pelo opcode contido em msg)
