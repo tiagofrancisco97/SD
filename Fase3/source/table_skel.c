@@ -18,7 +18,7 @@ struct task_t *queue_head;
 pthread_mutex_t queue_lock, table_lock;
 pthread_cond_t queue_not_empty;
 pthread_t thread;
-int run=1;
+int run = 1;
 
 /* Inicia o skeleton da tabela.
  * O main() do servidor deve chamar esta função antes de poder usar a
@@ -86,7 +86,7 @@ int invoke(struct message_t *msg){
             return 0;
 
         case MESSAGE_T__OPCODE__OP_DEL:
-            //data = data_create2(msg->data_size, msg->data);
+
             result=insereTask(0,msg->key,NULL);
 
             if(result != -1 ){
@@ -97,14 +97,6 @@ int invoke(struct message_t *msg){
                 msg->opcode = MESSAGE_T__OPCODE__OP_ERROR;
                 msg->c_type = MESSAGE_T__C_TYPE__CT_NONE;
             }
-            /*result = table_del(tabela, msg->key);
-            if(result == 0 ){
-                msg->opcode = MESSAGE_T__OPCODE__OP_DEL + 1;
-                msg->c_type=MESSAGE_T__C_TYPE__CT_RESULT;
-            } else{
-                msg->opcode = MESSAGE_T__OPCODE__OP_ERROR;
-                msg->c_type = MESSAGE_T__C_TYPE__CT_NONE;
-            }*/
             return 0;
 
         case MESSAGE_T__OPCODE__OP_GET:
@@ -122,26 +114,16 @@ int invoke(struct message_t *msg){
             return 0;
 
         case MESSAGE_T__OPCODE__OP_PUT:
-            //data = data_create2(msg->data_size, msg->data);
             result=insereTask(1,msg->key,msg->data);
             if(result != -1 ){
                 msg->opcode = MESSAGE_T__OPCODE__OP_PUT + 1;
                 msg->c_type=MESSAGE_T__C_TYPE__CT_RESULT;
                 msg->data_size = result;
-                //pthread_cond_signal(&queue_not_empty);
+
             } else{
                 msg->opcode = MESSAGE_T__OPCODE__OP_ERROR;
                 msg->c_type = MESSAGE_T__C_TYPE__CT_NONE;
             }
-
-            /*result = table_put(tabela, msg->key, data);
-            free(data);
-            if(result == 0){
-                msg->opcode = MESSAGE_T__OPCODE__OP_PUT+1;
-            } else{
-                msg->opcode = MESSAGE_T__OPCODE__OP_ERROR;
-            }
-            msg->c_type = MESSAGE_T__C_TYPE__CT_NONE;*/
             return 0;
 
         case MESSAGE_T__OPCODE__OP_GETKEYS:

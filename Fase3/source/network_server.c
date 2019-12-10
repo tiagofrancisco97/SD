@@ -33,7 +33,7 @@ struct sockaddr_in server, client;
 int nbytes, opt, kfds, nfds;
 socklen_t size_client;
 struct pollfd *connections;
-int n=2;
+int n = 2;
 
 /* Função para preparar uma socket de receção de pedidos de ligação
  * num determinado porto.
@@ -72,7 +72,6 @@ int network_server_init(short port){
     return sockfd;
 }
 
-//TODO doc e meter isto no .h
 void sort_sockets(int index){
     for (int i = index; i <= nfds - index; i++){
         if(i == nfds - 1){
@@ -88,7 +87,6 @@ void sort_sockets(int index){
 
 static volatile int keepRunning = 1;
 
-//TODO meter este num .h
 void INThandler(int sig){
     keepRunning = 0;
 }
@@ -127,8 +125,8 @@ int network_main_loop(int listening_socket){
                         nfds++;
                         if(nfds == ((n-1)*NFDESC)-1){
                             printf("Realocando as coneccoes para um vetor maior ...\n");
-                            struct pollfd *new= realloc(connections, (n*NFDESC) *sizeof(struct pollfd *));
-                            connections=new;
+                            struct pollfd *new = realloc(connections, (n*NFDESC) *sizeof(struct pollfd *));
+                            connections = new;
                             n++;
                         }
                     }

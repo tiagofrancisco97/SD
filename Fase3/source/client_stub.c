@@ -160,7 +160,6 @@ struct data_t *rtable_get(struct rtable_t *rtable, char *key){
         free_message_t(response);
         return NULL;
     }
-    printf("O tamanho retornado eh %d\n", response->data_size);
     if (response->data_size > 0){
         struct data_t *data = data_create2(response->data_size, response->data);
         struct data_t *dup = data_dup(data);
