@@ -26,7 +26,7 @@ int run = 1;
  * serem usadas pela tabela mantida no servidor.
  * Retorna 0 (OK) ou -1 (erro, por exemplo OUT OF MEMORY)
  */
-int table_skel_init(int n_lists){
+int table_skel_init(int n_lists, char *ip_zookeeper){
     if(n_lists < 1){
         return -1;
     }

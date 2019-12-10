@@ -12,9 +12,9 @@
 
 int main(int argc, char **argv){
 
-    if(argc != 3){
-        printf("Deve introduzir: table-server <port> <n_lists>\n");
-        printf("Exemplo de uso: ./binary/table-server 12345 2\n");
+    if(argc != 4){
+        printf("Deve introduzir: table-server <port> <n_lists> <IP>:<porta>\n");
+        printf("Exemplo de uso: ./binary/table-server 12345 2 127.0.0.1:2181 \n");
         return -1;
     }
 
@@ -24,7 +24,7 @@ int main(int argc, char **argv){
         return -1;
     }
 
-	int skel_init = table_skel_init(atoi(argv[2]));
+	int skel_init = table_skel_init(atoi(argv[2]), argv[3]);
 
     if((skel_init == 0 ) != 0){
         printf("Tabela iniciada\n");
