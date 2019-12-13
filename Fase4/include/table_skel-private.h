@@ -9,18 +9,21 @@
 #include "sdmessage.pb-c.h"
 #include "table.h"
 #include <netinet/in.h>
+#include "zookeeper/zookeeper.h"
+
 
 /* Insere uma task na struct task_t
  * Devolve o numero da operação
 */
 int insereTask(int op,char* key, char *data);
 
-
 struct rtable_t{
-    struct sockaddr_in address;
+    zhandle_t *zh;
+    int idZoo;
+    int idNext;
     int sockfd;
-    int id;
-    struct rtable_t *next;
 };
+
+void connection_watcher(zhandle_t *zzh, int type, int state, const char *path, void* context);
 
 #endif

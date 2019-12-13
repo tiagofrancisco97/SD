@@ -24,7 +24,9 @@ int main(int argc, char **argv){
         return -1;
     }
 
-	int skel_init = table_skel_init(atoi(argv[2]), argv[3]);
+    obtemIp(argv[3]);
+    obtemPort(argv[1]);
+	int skel_init = table_skel_init(atoi(argv[2]));
 
     if((skel_init == 0 ) != 0){
         printf("Tabela iniciada\n");
