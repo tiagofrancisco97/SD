@@ -23,6 +23,8 @@ char *IPbuffer;
 struct hostent *host_entry; 
 int hostname; 
 char* adress;
+struct message_t *mensagem;
+
   
 
 #define ZDATALEN 1024 * 1024
@@ -197,6 +199,25 @@ void table_skel_destroy(){
  * Retorna 0 (OK) ou -1 (erro, por exemplo, tabela nao incializada)
 */
 int invoke(struct message_t *msg){
+    //copia
+    mensagem=(struct message_t*) malloc(sizeof(struct message_t));//msg;
+    mensagem->base = msg->base;
+    mensagem->opcode = msg->opcode;
+    mensagem->c_type = msg->c_type;
+    mensagem->data_size = msg->data_size;
+    mensagem->data = NULL;
+    mensagem->key = NULL;
+    mensagem->n_keys = msg->n_keys;
+    mensagem->keys = NULL;
+
+    if (msg->data != NULL && strcmp(msg->data, "") != 0) {
+        mensagem->data = strdup(msg->data);
+    }
+
+    if (msg->key != NULL && strcmp(msg->key, "") != 0) {
+        mensagem->key = strdup(msg->key);
+    }
+    //copia
 
     if(msg == NULL){
         return -1;
@@ -327,6 +348,9 @@ void * process_task (void *params){
                         op_count++;
                     }
                 }
+                if(server->idNext!=NULL && server->sockfd!=-1){
+                    envia(mensagem);
+                }
                 free(atual->key);
                 struct task_t *a = atual;
                 atual=atual->next;
@@ -434,7 +458,29 @@ static void child_watcher(zhandle_t *wzh, int type, int state, const char *zpath
                     printf("\n entroy no if data=: %s\n", children_list->data[indice+1]);
                     server->idNext=malloc(strlen(children_list->data[indice+1]));
                     strcpy(server->idNext, children_list->data[indice+1]);
-                    //server->sockfd;
+                    
+                    char node_path[120] = "/chain/";
+		            strcat(node_path,server->idNext); 
+		            int ip_len = 1024;
+		            char* ip = malloc (ip_len);
+                    printf("path: %s\n",node_path);
+
+                    if(ZOK !=zoo_get(server->zh,node_path, 0, ip, &ip_len, NULL)){
+                        fprintf(stderr, "Erro ao obter metadados do servidor\n");
+                    }
+                    printf("ip:%s\n",ip);
+                    char *address_copy = (char *) malloc(strlen(ip) + 1);
+                    if (address_copy == NULL){
+                        fprintf(stderr, "Erro ao copiar endereco\n");
+                    }
+
+                    // get IP address and port
+                    strcpy(address_copy, ip);
+                    char* adress=strtok(address_copy, ":"); //ip
+                    char *port = strtok(NULL, ":"); //port
+                    printf("port:%s\n",port);
+                    //printf("socket : %d\n", server->sockfd);
+                    conecta(adress, port);
                 }   
             } 
             else if(indice!=-1 && indice==children_list->count-1){
@@ -464,5 +510,58 @@ void compareFunction(struct String_vector *children_list){
                 strcpy(children_list->data[j], temp);
             }
         }
+    }
+}
+
+void conecta(char* ip, char* port){
+    struct sockaddr_in s;
+    if ((server->sockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0) { 
+        printf("\n Socket creation error \n"); 
+        return -1; 
+    } 
+    s.sin_family = AF_INET; 
+    s.sin_port = htons(atoi(port)); 
+    if(inet_pton(AF_INET, ip, &s.sin_addr)<=0)  { 
+        printf("\nInvalid address/ Address not supported \n"); 
+        return -1; 
+    } 
+    if (connect(server->sockfd, (struct sockaddr *)&s, sizeof(s)) < 0){ 
+        printf("\nConnection Failed \n"); 
+        return -1; 
+    } 
+}
+
+void envia(){
+    uint8_t *buf = NULL;
+    int len;
+    MessageT message = mToM(mensagem);
+
+    len = message_t__get_packed_size(&message);
+
+    buf = malloc(len);
+    if (buf == NULL){
+        free_message_t(mensagem);
+        fprintf(stdout, "malloc error\n");
+        return NULL;
+    }
+
+    message_t__pack(&message, buf);
+
+    int nbytes;
+
+    if((nbytes = write_all(server->sockfd,(char *) &len, sizeof(len))) != sizeof(len)){
+        free_message_t(mensagem);
+        free(buf);
+        perror("Erro ao enviar dados ao servidor");
+        close(server->sockfd);
+        return NULL;
+    }
+
+    if((nbytes = write_all(server->sockfd,(char *) buf, len)) != len){
+        free_message_t(mensagem);
+        free(buf);
+        perror("Erro ao enviar dados ao servidor");
+        close(server->sockfd);
+        return NULL;
     }
 }

@@ -7,6 +7,7 @@
 #define _CLIENT_STUB_PRIVATE_H
 
 #include <netinet/in.h>
+#include "client_stub.h"
 
 struct rtable_t{
     struct sockaddr_in address;

@@ -2,6 +2,9 @@
     "files.associations": {
         "sstream": "c",
         "zookeeper.h": "c",
-        "inet.h": "c"
+        "inet.h": "c",
+        "array": "c",
+        "string": "c",
+        "string_view": "c"
     }
 }

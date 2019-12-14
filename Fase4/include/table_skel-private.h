@@ -10,6 +10,8 @@
 #include "table.h"
 #include <netinet/in.h>
 #include "zookeeper/zookeeper.h"
+#include "network_server.h"
+
 
 
 /* Insere uma task na struct task_t
