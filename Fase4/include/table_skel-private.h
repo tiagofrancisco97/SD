@@ -26,4 +26,8 @@ struct rtable_t{
 
 void connection_watcher(zhandle_t *zzh, int type, int state, const char *path, void* context);
 
+void ligaNext();
+
+static void child_watcher(zhandle_t *wzh, int type, int state, const char *zpath, void *watcher_ctx);
+
 #endif

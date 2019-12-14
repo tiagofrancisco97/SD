@@ -68,7 +68,7 @@ int network_server_init(short port){
         return -1;
     }
     connections=malloc(NFDESC * sizeof(struct pollfd*));
-    obtemServer(server);
+    
 
     return sockfd;
 }

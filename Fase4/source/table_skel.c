@@ -10,11 +10,14 @@
 #include <string.h>
 #include "pthread.h"
 #include "zookeeper/zookeeper.h"
+#include <netdb.h>
+#include <arpa/inet.h>
+#include <ifaddrs.h>
 
 static zhandle_t *zh;
 static int is_connected;
 static char *root_path = "/chain";
-char* ipZoo;
+//char* ipZoo;
 char* adress;
 struct rtable_t *servers = NULL;
 
@@ -39,7 +42,7 @@ int run = 1;
  * serem usadas pela tabela mantida no servidor.
  * Retorna 0 (OK) ou -1 (erro, por exemplo OUT OF MEMORY)
  */
-int table_skel_init(int n_lists){
+int table_skel_init(char* port,int n_lists, char* ipZoo){
 
     if(n_lists < 1){
         return -1;
@@ -48,6 +51,22 @@ int table_skel_init(int n_lists){
     if(tabela == NULL){
         return -1;
     }
+
+    if(port==NULL){
+        return -1;
+    }
+
+    if(ipZoo==NULL){
+        return -1;
+    }
+
+    //obtemServer(port);
+    struct ifaddrs *id;
+    struct sockaddr_in *sa;
+    int val= getifaddrs(&id);
+    sa = (struct sockaddr_in *) id->ifa_addr;
+    char *s=inet_ntoa(sa->sin_addr);
+    printf("adrr: %s\n",s);
 
     /* criação de nova thread */
 	if (pthread_create(&thread, NULL, &process_task, NULL) != 0){
@@ -58,6 +77,10 @@ int table_skel_init(int n_lists){
     pthread_mutex_init(&table_lock, NULL);
     pthread_cond_init(&queue_not_empty, NULL);
     servers = (struct rtable_t*) malloc(sizeof(struct rtable_t));
+    fase4(ipZoo);
+
+    fazWatch();
+    ///////
     
     return 0;
 }
@@ -272,58 +295,64 @@ int insereTask(int op,char* key, char *data){
 * Watcher function for connection state change events
 */
 void connection_watcher(zhandle_t *zzh, int type, int state, const char *path, void* context) {
+    printf("path=%s\n", path);
 	if (type == ZOO_SESSION_EVENT) {
 		if (state == ZOO_CONNECTED_STATE) {
 			is_connected = 1; 
+            printf("==================if====================\n");
+
 		} else {
 			is_connected = 0; 
+            printf("================else======================\n");
+
 		}
 	}
 }
 
-void fase4(){
+void fase4(char* ipZoo){
     
     servers->zh = zookeeper_init(ipZoo, connection_watcher,	2000, 0, NULL, 0); 
-	if (zh == NULL)	{
+	if (servers->zh == NULL)	{
 		fprintf(stderr, "Error connecting to ZooKeeper server!\n");
 	    exit(EXIT_FAILURE);
 	}
+    sleep(3);
     if (is_connected) {
-        
-		if (ZNONODE == zoo_exists(zh, root_path, 0, NULL)) {
-			fprintf(stderr, "%s doesn't exist! \
+
+		if (ZNONODE == zoo_exists(servers->zh, root_path, 0, NULL)) {
+            if (ZOK == zoo_create( zh, root_path, NULL, -1, & ZOO_OPEN_ACL_UNSAFE, 0, NULL, 0)) {
+					fprintf(stderr, "%s created!\n", root_path);
+			}else{
+                fprintf(stderr, "%s doesn't exist! \
 				            Try again \n", root_path);
-			exit(EXIT_FAILURE);
+			    exit(EXIT_FAILURE);
+            }
 		}
+
 		char node_path[120] = "";
+        
 		strcat(node_path,root_path); 
 		strcat(node_path,"/node"); 
 		int new_path_len = 1024;
 		char* new_path = malloc (new_path_len);
+        adress="127.0.0.1:10001";
+        
 		
 		if (ZOK != zoo_create(zh, node_path, adress, sizeof(adress), & ZOO_OPEN_ACL_UNSAFE, ZOO_EPHEMERAL | ZOO_SEQUENCE, new_path, new_path_len)) {
 			fprintf(stderr, "Error creating znode from path %s!\n", node_path);
 			exit(EXIT_FAILURE);
 		}
+        
 		fprintf(stderr, "Ephemeral Sequencial ZNode created! ZNode path: %s\n", new_path); 
         if (sscanf(new_path, "%d", &servers->idZoo) != 1 && new_path_len==0) {
             printf("Erro ao obter id de node\n");
         }
 		free (new_path);
+        fazWatch();
 	}
 
 }
 
-void obtemIp(char * ip){
-    ipZoo=ip;
-}
-
-void obtemServer(struct sockaddr_in server){
-    char* port=server.sin_port;
-    adress=server.sin_addr.s_addr;
-    strcat(adress,":"); 
-    strcat(adress,port); 
-}
 
 /**
 * Data Watcher function for /MyData node
@@ -357,6 +386,7 @@ void fazWatch(){
     int indice=-1;
 	for (int i = 0; i < children_list->count; i++)  {
 		fprintf(stderr, "\n(%d): %s", i+1, children_list->data[i]);
+        printf("data no children: %s\n", children_list->data[i]);
         if (sscanf(children_list->data[i], "%d", &seqNumber) != 1) {
             printf("Erro ao obter id de node\n");
         }
@@ -377,8 +407,8 @@ void fazWatch(){
         }
     } 
     else if(indice!=-1 && indice==children_list->count-1){
-        servers->idNext=NULL;
-        servers->sockfd=NULL;
+        servers->idNext=-1;
+        servers->sockfd=-1;
     }
 
     fprintf(stderr, "\n=== done ===\n");

@@ -1,6 +1,7 @@
 {
     "files.associations": {
         "sstream": "c",
-        "zookeeper.h": "c"
+        "zookeeper.h": "c",
+        "inet.h": "c"
     }
 }
