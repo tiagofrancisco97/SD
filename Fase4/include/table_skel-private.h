@@ -17,17 +17,17 @@
 */
 int insereTask(int op,char* key, char *data);
 
-struct rtable_t{
+struct server_t{
     zhandle_t *zh;
-    int idZoo;
-    int idNext;
+    char* id;
+    char* idNext;
     int sockfd;
 };
 
 void connection_watcher(zhandle_t *zzh, int type, int state, const char *path, void* context);
 
-void ligaNext();
-
 static void child_watcher(zhandle_t *wzh, int type, int state, const char *zpath, void *watcher_ctx);
+
+void compareFunction(struct String_vector *children_list);
 
 #endif
