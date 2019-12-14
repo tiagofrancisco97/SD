@@ -17,9 +17,14 @@
 static zhandle_t *zh;
 static int is_connected;
 static char *root_path = "/chain";
-//char* ipZoo;
-char* adress;
 struct rtable_t *servers = NULL;
+
+char hostbuffer[256]; 
+char *IPbuffer; 
+struct hostent *host_entry; 
+int hostname; 
+char* adress;
+  
 
 #define ZDATALEN 1024 * 1024
 typedef struct String_vector zoo_string; 
@@ -60,13 +65,28 @@ int table_skel_init(char* port,int n_lists, char* ipZoo){
         return -1;
     }
 
-    //obtemServer(port);
-    struct ifaddrs *id;
-    struct sockaddr_in *sa;
-    int val= getifaddrs(&id);
-    sa = (struct sockaddr_in *) id->ifa_addr;
-    char *s=inet_ntoa(sa->sin_addr);
-    printf("adrr: %s\n",s);
+    
+    hostname = gethostname(hostbuffer, sizeof(hostbuffer)); 
+    if (hostname == -1) 
+    { 
+        perror("gethostname"); 
+        exit(1); 
+    } 
+  
+    
+    host_entry = gethostbyname(hostbuffer); 
+    if (host_entry == NULL) 
+    { 
+        perror("gethostbyname"); 
+        exit(1); 
+    } 
+  
+    IPbuffer = inet_ntoa(*((struct in_addr*) host_entry->h_addr_list[0])); 
+  
+    adress = strcat(IPbuffer, ":");
+    strcat(adress,port);
+
+    
 
     /* criação de nova thread */
 	if (pthread_create(&thread, NULL, &process_task, NULL) != 0){
@@ -76,10 +96,89 @@ int table_skel_init(char* port,int n_lists, char* ipZoo){
     pthread_mutex_init(&queue_lock, NULL);
     pthread_mutex_init(&table_lock, NULL);
     pthread_cond_init(&queue_not_empty, NULL);
-    servers = (struct rtable_t*) malloc(sizeof(struct rtable_t));
-    fase4(ipZoo);
 
-    fazWatch();
+
+
+
+
+    servers = (struct rtable_t*) malloc(sizeof(struct rtable_t));
+   
+    
+    servers->zh = zookeeper_init(ipZoo, connection_watcher,	2000, 0, NULL, 0); 
+	if (servers->zh == NULL)	{
+		fprintf(stderr, "Error connecting to ZooKeeper server!\n");
+	    exit(EXIT_FAILURE);
+	}
+    sleep(3);
+    if (is_connected) {
+       
+		if (ZNONODE == zoo_exists(servers->zh, root_path, 0, NULL)) {
+			if (ZOK != zoo_create(servers->zh, root_path, NULL, -1, & ZOO_CREATOR_ALL_ACL, 0, NULL, 0)) {
+			    fprintf(stderr, "Error creating znode from path %s!\n", root_path);
+			    exit(EXIT_FAILURE);
+		    }
+		}
+    
+		char node_path[120] = "";
+        
+		strcat(node_path,root_path); 
+		strcat(node_path,"/node"); 
+		int new_path_len = 1024;
+		char* new_path = malloc (new_path_len);
+        
+        
+		
+		if (ZOK != zoo_create(servers->zh, node_path, adress, strlen(adress), & ZOO_OPEN_ACL_UNSAFE, ZOO_EPHEMERAL | ZOO_SEQUENCE, new_path, new_path_len)) {
+			fprintf(stderr, "Error creating znode from path %s!\n", node_path);
+			exit(EXIT_FAILURE);
+		}
+        
+		fprintf(stderr, "Ephemeral Sequencial ZNode created! ZNode path: %s\n", new_path); 
+        if (sscanf(new_path, "%d", &servers->idZoo) != 1 && new_path_len==0) {
+            printf("Erro ao obter id de node\n");
+        }
+		free (new_path);
+        
+
+        zoo_string* children_list =	(zoo_string *) malloc(sizeof(zoo_string));
+        if (ZOK != zoo_wget_children(zh, root_path, &child_watcher, watcher_ctx, children_list)) {
+				fprintf(stderr, "Error setting watch at %s!\n", root_path);
+	    }
+	    fprintf(stderr, "\n=== znode listing === [ %s ]", root_path); 
+        int seqNumber=-1;
+        int indice=-1;
+	    for (int i = 0; i < children_list->count; i++)  {
+		    fprintf(stderr, "\n(%d): %s", i+1, children_list->data[i]);
+            printf("data no children: %s\n", children_list->data[i]);
+            if (sscanf(children_list->data[i], "%d", &seqNumber) != 1) {
+                printf("Erro ao obter id de node\n");
+            }
+            if(seqNumber ==servers->idZoo){
+                indice=i;
+            }
+	    }
+        if(indice!=-1 && indice!=children_list->count-1){
+            if(children_list->data[indice+1]!=NULL){
+                int next=-1;
+                if (sscanf(children_list->data[indice+1], "%d", &next) != 1) {
+                    printf("Erro ao obter id de node\n");
+                }
+                if(next!=-1){
+                    servers->idNext=children_list->data[indice+1];
+                    servers->sockfd;
+                }
+            }   
+        } 
+        else if(indice!=-1 && indice==children_list->count-1){
+            servers->idNext=-1;
+            servers->sockfd=-1;
+        }
+
+        fprintf(stderr, "\n=== done ===\n");
+
+        //fazWatch();
+	}
+
     ///////
     
     return 0;
@@ -308,7 +407,7 @@ void connection_watcher(zhandle_t *zzh, int type, int state, const char *path, v
 		}
 	}
 }
-
+/*
 void fase4(char* ipZoo){
     
     servers->zh = zookeeper_init(ipZoo, connection_watcher,	2000, 0, NULL, 0); 
@@ -319,19 +418,15 @@ void fase4(char* ipZoo){
     sleep(3);
     if (is_connected) {
 
-		if (ZNONODE == zoo_exists(servers->zh, root_path, 0, NULL)) {
-            if (ZOK == zoo_create( zh, root_path, NULL, -1, & ZOO_OPEN_ACL_UNSAFE, 0, NULL, 0)) {
-					fprintf(stderr, "%s created!\n", root_path);
-			}else{
-                fprintf(stderr, "%s doesn't exist! \
+		if (ZNONODE == zoo_exists(servers->zh, "", 0, NULL)) {
+			fprintf(stderr, "%s doesn't exist! \
 				            Try again \n", root_path);
-			    exit(EXIT_FAILURE);
-            }
+			exit(EXIT_FAILURE);
 		}
 
 		char node_path[120] = "";
         
-		strcat(node_path,root_path); 
+		//strcat(node_path,root_path); 
 		strcat(node_path,"/node"); 
 		int new_path_len = 1024;
 		char* new_path = malloc (new_path_len);
@@ -351,7 +446,7 @@ void fase4(char* ipZoo){
         fazWatch();
 	}
 
-}
+}*/
 
 
 /**
