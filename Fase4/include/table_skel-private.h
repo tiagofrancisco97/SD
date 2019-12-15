@@ -32,4 +32,8 @@ static void child_watcher(zhandle_t *wzh, int type, int state, const char *zpath
 
 void compareFunction(struct String_vector *children_list);
 
+void conecta(char* ip, char* port);
+
+void envia();
+
 #endif

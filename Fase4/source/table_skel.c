@@ -13,6 +13,7 @@
 #include <netdb.h>
 #include <arpa/inet.h>
 #include <ifaddrs.h>
+#include "table_skel-private.h"
 
 static int is_connected;
 static char *root_path = "/chain";
@@ -65,29 +66,22 @@ int table_skel_init(char* port,int n_lists, char* ipZoo){
     if(ipZoo==NULL){
         return -1;
     }
-
     
     hostname = gethostname(hostbuffer, sizeof(hostbuffer)); 
-    if (hostname == -1) 
-    { 
+    if (hostname == -1) { 
         perror("gethostname"); 
-        exit(1); 
     } 
   
     
     host_entry = gethostbyname(hostbuffer); 
-    if (host_entry == NULL) 
-    { 
+    if (host_entry == NULL) { 
         perror("gethostbyname"); 
-        exit(1); 
     } 
   
     IPbuffer = inet_ntoa(*((struct in_addr*) host_entry->h_addr_list[0])); 
   
     adress = strcat(IPbuffer, ":");
     strcat(adress,port);
-
-    
 
     /* criação de nova thread */
 	if (pthread_create(&thread, NULL, &process_task, NULL) != 0){
@@ -129,11 +123,8 @@ int table_skel_init(char* port,int n_lists, char* ipZoo){
 		}
         fprintf(stderr, "Ephemeral Sequencial ZNode created! ZNode path: %s\n", new_path); 
 
-        //char *token;
-        //token = strtok(new_path, "/");
-        //token = strtok(NULL, "/");
+        server->id=malloc(new_path_len);
         strcpy(server->id,new_path);
-        //server->id=strtok(server->id,"/chain");
 		free (new_path);        
 
         zoo_string* children_list =	(zoo_string *) malloc(sizeof(zoo_string));
@@ -142,31 +133,14 @@ int table_skel_init(char* port,int n_lists, char* ipZoo){
 	    }
 	    fprintf(stderr, "\n=== znode listing === [ %s ]", root_path); 
 
-        int indice=-1;
         compareFunction(children_list);
 	    for (int i = 0; i < children_list->count; i++)  {
 		    fprintf(stderr, "\n(%d): %s\n", i+1, children_list->data[i]);
             printf("data no children: %s\n", children_list->data[i]);
-            char p[120] = "";
-		    strcat(p,root_path); 
-		    strcat(p,"/"); 
-            strcat(p,children_list->data[i]); 
-           
-            if(strcmp(server->id, p)==0 ){
-                indice=i;
-            }
 	    }
-        if(indice!=-1 && indice<children_list->count-1){
-            if(children_list->data[indice+1]!=NULL){
-                server->idNext=malloc(strlen(children_list->data[indice+1]));
-                strcpy(server->idNext, children_list->data[indice+1]);
-                //server->sockfd;
-            }   
-        } 
-        else if(indice!=-1 && indice==children_list->count-1){
-            server->idNext=NULL;
-            server->sockfd=-1;
-        }
+        
+        server->idNext=NULL;
+        server->sockfd=-1;
 
         printf("id do atual=%s\n", server->id);
         if(server->idNext==NULL){
@@ -176,6 +150,7 @@ int table_skel_init(char* port,int n_lists, char* ipZoo){
         }
 
         fprintf(stderr, "\n=== done ===\n");
+        free(children_list);
 	}
     return 0;
 }
@@ -192,6 +167,23 @@ void table_skel_destroy(){
 		perror("\nErro no join.\n");
 		exit(EXIT_FAILURE);
 	}
+    free_message_t(mensagem);
+    
+    if (ZOK != zoo_delete(server->zh, server->id, -1)) {
+ 		fprintf(stderr, "Error deleting node %s!\n", server->id);
+ 	}
+    if (ZOK != zookeeper_close(server->zh)) {
+ 	    fprintf(stderr, "Error closing connection to zoo !\n");
+ 	}
+    free(server->id);
+    free(server->idNext);
+    free(server);
+   // free(root_path);
+    //free(IPbuffer);
+    //free(host_entry);
+    //free(adress);
+   
+
 }
 
 /* Executa uma operação na tabela (indicada pelo opcode contido em msg)
@@ -199,7 +191,7 @@ void table_skel_destroy(){
  * Retorna 0 (OK) ou -1 (erro, por exemplo, tabela nao incializada)
 */
 int invoke(struct message_t *msg){
-    //copia
+    //copia do msg
     mensagem=(struct message_t*) malloc(sizeof(struct message_t));//msg;
     mensagem->base = msg->base;
     mensagem->opcode = msg->opcode;
@@ -217,7 +209,6 @@ int invoke(struct message_t *msg){
     if (msg->key != NULL && strcmp(msg->key, "") != 0) {
         mensagem->key = strdup(msg->key);
     }
-    //copia
 
     if(msg == NULL){
         return -1;
@@ -383,13 +374,11 @@ int insereTask(int op,char* key, char *data){
         t->op=1;
         t->data=malloc(strlen(data)+1);
         strcpy(t->data,data);
-        //printf("inserindo no taks value %s \n", t->data);
     }
     pthread_mutex_lock(&queue_lock);
     if(queue_head==NULL){
             queue_head=t;
             t->next=NULL;
-            //printf("inserindo no taks key %s \n", queue_head->key);
 
     } else{ 
         struct task_t *atual=queue_head;
@@ -398,7 +387,6 @@ int insereTask(int op,char* key, char *data){
         }
         atual->next=t;
         t->next=NULL;
-        //printf("inserindo no taks key %s \n", atual->next->key);
     }
 
     last_assigned++;
@@ -427,7 +415,6 @@ void connection_watcher(zhandle_t *zzh, int type, int state, const char *path, v
 */
 static void child_watcher(zhandle_t *wzh, int type, int state, const char *zpath, void *watcher_ctx) {
 	zoo_string* children_list =	(zoo_string *) malloc(sizeof(zoo_string));
-	int zoo_data_len = ZDATALEN;
 
 	if (state == ZOO_CONNECTED_STATE)	 {
 		if (type == ZOO_CHILD_EVENT) {
@@ -438,7 +425,6 @@ static void child_watcher(zhandle_t *wzh, int type, int state, const char *zpath
 			fprintf(stderr, "\n=== znode listing === [ %s ]", root_path); 
 
             int indice=-1;
-            //qsort(children_list, sizeof(children_list)/sizeof(children_list->data[0]), sizeof(char), compareFunction);
             compareFunction(children_list);
 			for (int i = 0; i < children_list->count; i++)  {
 				fprintf(stderr, "\n(%d): %s", i+1, children_list->data[i]);
@@ -454,21 +440,18 @@ static void child_watcher(zhandle_t *wzh, int type, int state, const char *zpath
 
             if(indice!=-1 && indice<children_list->count-1){
                 if(children_list->data[indice+1]!=NULL){
-                    printf("\n entroy no if data=: %s\n", children_list->data[indice]);
-                    printf("\n entroy no if data=: %s\n", children_list->data[indice+1]);
                     server->idNext=malloc(strlen(children_list->data[indice+1]));
+
                     strcpy(server->idNext, children_list->data[indice+1]);
                     
                     char node_path[120] = "/chain/";
 		            strcat(node_path,server->idNext); 
 		            int ip_len = 1024;
 		            char* ip = malloc (ip_len);
-                    printf("path: %s\n",node_path);
 
                     if(ZOK !=zoo_get(server->zh,node_path, 0, ip, &ip_len, NULL)){
                         fprintf(stderr, "Erro ao obter metadados do servidor\n");
                     }
-                    printf("ip:%s\n",ip);
                     char *address_copy = (char *) malloc(strlen(ip) + 1);
                     if (address_copy == NULL){
                         fprintf(stderr, "Erro ao copiar endereco\n");
@@ -478,21 +461,14 @@ static void child_watcher(zhandle_t *wzh, int type, int state, const char *zpath
                     strcpy(address_copy, ip);
                     char* adress=strtok(address_copy, ":"); //ip
                     char *port = strtok(NULL, ":"); //port
-                    printf("port:%s\n",port);
-                    //printf("socket : %d\n", server->sockfd);
                     conecta(adress, port);
+                    free(ip);
+                    free(address_copy);
                 }   
             } 
             else if(indice!=-1 && indice==children_list->count-1){
                 server->idNext=NULL;
                 server->sockfd=-1;
-            }
-
-            printf("iddo atual=%s\n", server->id);
-            if(server->idNext==NULL){
-                printf("id do next esta a null\n");
-            }else{
-                printf("id do next=%s\n", server->idNext);
             }
 		} 
 	}
@@ -516,18 +492,15 @@ void compareFunction(struct String_vector *children_list){
 void conecta(char* ip, char* port){
     struct sockaddr_in s;
     if ((server->sockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0) { 
-        printf("\n Socket creation error \n"); 
-        return -1; 
+        fprintf(stderr,"\n Socket creation error \n");
     } 
     s.sin_family = AF_INET; 
     s.sin_port = htons(atoi(port)); 
     if(inet_pton(AF_INET, ip, &s.sin_addr)<=0)  { 
-        printf("\nInvalid address/ Address not supported \n"); 
-        return -1; 
+        fprintf(stderr,"\nInvalid address/ Address not supported \n");
     } 
     if (connect(server->sockfd, (struct sockaddr *)&s, sizeof(s)) < 0){ 
-        printf("\nConnection Failed \n"); 
-        return -1; 
+        fprintf(stderr, "\nConnection Failed \n");
     } 
 }
 
@@ -542,7 +515,6 @@ void envia(){
     if (buf == NULL){
         free_message_t(mensagem);
         fprintf(stdout, "malloc error\n");
-        return NULL;
     }
 
     message_t__pack(&message, buf);
@@ -554,7 +526,6 @@ void envia(){
         free(buf);
         perror("Erro ao enviar dados ao servidor");
         close(server->sockfd);
-        return NULL;
     }
 
     if((nbytes = write_all(server->sockfd,(char *) buf, len)) != len){
@@ -562,6 +533,7 @@ void envia(){
         free(buf);
         perror("Erro ao enviar dados ao servidor");
         close(server->sockfd);
-        return NULL;
     }
+
+    free(buf);
 }
