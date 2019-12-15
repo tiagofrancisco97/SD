@@ -26,7 +26,7 @@ client-lib.o: $(CLIENT_LIB)
 	ld -r $(CLIENT_LIB) -o $(LIB)cliente-lib.o
 
 table-client: $(TABLE_CLIENT)
-	$(CC) $(LIB)cliente-lib.o $(TABLE_CLIENT) $(PROTOFLAG) -o $(BIN)table-client
+	$(CC) $(LIB)cliente-lib.o $(TABLE_CLIENT) $(PROTOFLAG) $(ZOOFLAG) -o $(BIN)table-client
 
 table-server: $(TABLE_SERVER)
 	$(CC) $(TABLE_SERVER) $(PROTOFLAG) $(THREADFLAG) $(ZOOFLAG) -o $(BIN)table-server

@@ -30,7 +30,7 @@ void connection_watcher(zhandle_t *zzh, int type, int state, const char *path, v
 
 static void child_watcher(zhandle_t *wzh, int type, int state, const char *zpath, void *watcher_ctx);
 
-void compareFunction(struct String_vector *children_list);
+void ordenaChildren(struct String_vector *children_list);
 
 void conecta(char* ip, char* port);
 

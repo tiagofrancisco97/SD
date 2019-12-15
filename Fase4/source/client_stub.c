@@ -16,6 +16,154 @@
 #include "sdmessage.pb-c.h"
 #include "network_client.h"
 #include "message.h"
+#include "zookeeper/zookeeper.h"
+
+
+/* ZooKeeper Znode Data Length (1MB, the max supported) */
+#define ZDATALEN 1024
+
+struct rtable_t* head;
+struct rtable_t* tail;
+static int is_connected;
+static char *watcher_ctx = "ZooKeeper Data Watcher";
+typedef struct String_vector zoo_string;
+zoo_string* children_list;
+static zhandle_t *zh;
+static char *zoo_path = "/chain";
+
+void connection_watcher(zhandle_t *zzh, int type, int state, const char *path, void* context) {
+    if (type == ZOO_SESSION_EVENT) {
+        if (state == ZOO_CONNECTED_STATE) {
+            is_connected = 1;
+        } else {
+            is_connected = 0;
+        }
+    }
+}
+
+static void child_watcher(zhandle_t *wzh, int type, int state, const char *zpath, void *watcher_ctx) {
+    zoo_string* children_list =	(zoo_string *) malloc(sizeof(zoo_string));
+    int zoo_data_len = ZDATALEN;
+    if (state == ZOO_CONNECTED_STATE)	 {
+        if (type == ZOO_CHILD_EVENT) {
+            /* Get the updated children and reset the watch */
+            if (ZOK != zoo_wget_children(wzh, zpath, child_watcher, watcher_ctx, children_list)) {
+                fprintf(stderr, "Error setting watch at %s!\n", zpath);
+            }
+    
+            ordenaChildren(children_list);
+
+            char lowest_id[120] = "/chain/";
+		    strcat(lowest_id,children_list->data[0]); 
+
+            char highest_id[120] = "/chain/";
+		    strcat(highest_id,children_list->data[children_list->count-1]); 
+
+            char *address_port_l = (char *) malloc(ZDATALEN * sizeof(char));
+            int address_port_l_length = ZDATALEN;
+            //o watch vai 0 porque nao mudo o node
+            if (ZOK != zoo_get(wzh, lowest_id, 0, address_port_l, &address_port_l_length, NULL)) {
+                fprintf(stderr, "Error getting data at %s!\n", zpath);
+            }
+            head = rtable_connect(address_port_l);
+            if (head == NULL){
+                rtable_disconnect(head);
+                fprintf(stderr, "Error connecting head\n");
+            }
+
+            char *address_port_h = (char *) malloc(ZDATALEN * sizeof(char));
+            int address_port_h_length = ZDATALEN;
+            //o watch vai 0 porque nao mudo o node
+            if (ZOK != zoo_get(wzh, highest_id, 0, address_port_h, &address_port_h_length, NULL)) {
+                fprintf(stderr, "Error getting data at %s!\n", zpath);
+            }
+            tail = rtable_connect(address_port_h);
+            if (tail == NULL){
+                rtable_disconnect(head);
+                fprintf(stderr, "Error connecting tail\n");
+            }
+
+            free(address_port_h);
+            free(address_port_l);
+        }
+    }
+    free(children_list);
+}
+
+int zookeeper_connect(char* host_port){
+    const char* zoo_root = "/chain";
+    children_list =	(zoo_string *) malloc(sizeof(zoo_string*));
+
+    /* Ligar ao zookeeper */
+    zh = zookeeper_init(host_port, connection_watcher,	2000, 0, NULL, 0);
+    if (zh == NULL)	{
+        fprintf(stderr, "Error connecting to ZooKeeper server!\n");
+        exit(EXIT_FAILURE);
+    }
+    sleep(3);
+    if(is_connected) {
+        /* Buscar filhos para children_list e activar watches*/
+        if (ZOK != zoo_wget_children(zh, zoo_path, &child_watcher, watcher_ctx, children_list)) {
+            fprintf(stderr, "Error setting watch at %s!\n", zoo_path);
+        }
+    }
+    for (int i = 0; i < children_list->count; i++)  {
+		fprintf(stderr, "\n(%d): %s\n", i+1, children_list->data[i]);
+        printf("data no children: %s\n", children_list->data[i]);
+	}
+
+    //obtem servidores head e tail
+    ordenaChildren(children_list);
+
+    char lowest_id[120] = "/chain/";
+	strcat(lowest_id,children_list->data[0]); 
+
+    char highest_id[120] = "/chain/";
+	strcat(highest_id,children_list->data[children_list->count-1]); 
+
+    char *address_port_l = (char *) malloc(ZDATALEN * sizeof(char));
+    int address_port_l_length=ZDATALEN;
+    //o watch vai 0 porque nao mudo o node
+    if (ZOK != zoo_get(zh,lowest_id, 0, address_port_l, &address_port_l_length, NULL)) {
+        fprintf(stderr, "Error getting data at %s!\n", zoo_path);
+    }
+
+    head = rtable_connect(address_port_l);
+
+    if (head == NULL){
+        rtable_disconnect(head);
+        fprintf(stderr, "Error connecting head\n");
+    }
+
+    char *address_port_h = (char *) malloc(ZDATALEN * sizeof(char));
+    int address_port_h_length=ZDATALEN;
+    //o watch vai 0 porque nao mudo o node
+    if (ZOK != zoo_get(zh,highest_id, 0, address_port_h, &address_port_h_length, NULL)) {
+        fprintf(stderr, "Error getting data at %s!\n", zoo_path);
+    }
+    tail = rtable_connect(address_port_h);
+    if (tail == NULL){
+        rtable_disconnect(head);
+        fprintf(stderr, "Error connecting tail\n");
+    }
+
+    free(address_port_h);
+    free(address_port_l);
+
+  return zh;
+}
+
+int zookeeper_disconect(int zh){
+    for (int i = 0; i < children_list->count; i++)  {
+        free(children_list->data[i]);
+    }
+    free(children_list->data);
+    free(children_list);
+    free(head);
+    free(tail);
+    free(zh);
+    return zookeeper_close(zh);
+}
 
 /* Função para estabelecer uma associação entre o cliente e o servidor,
  * em que address_port é uma string no formato <hostname>:<port>.
@@ -88,8 +236,8 @@ int rtable_disconnect(struct rtable_t *rtable){
  * Se a key já existe, vai substituir essa entrada pelos novos dados.
  * Devolve 0 (ok, em adição/substituição) ou -1 (problemas).
  */
-int rtable_put(struct rtable_t *rtable, struct entry_t *entry){
-    if (rtable == NULL || entry == NULL){
+int rtable_put(struct entry_t *entry){
+    if (head == NULL || entry == NULL){
         printf("Deu null");
         return -1;
     }
@@ -115,7 +263,7 @@ int rtable_put(struct rtable_t *rtable, struct entry_t *entry){
         return -1;
     }
 
-    struct message_t *response = network_send_receive(rtable, req);
+    struct message_t *response = network_send_receive(head, req);
     if (response == NULL || response->opcode == MESSAGE_T__OPCODE__OP_ERROR){
         free_message_t(response);
         return -1;
@@ -129,8 +277,8 @@ int rtable_put(struct rtable_t *rtable, struct entry_t *entry){
 /* Função para obter um elemento da tabela.
  * Em caso de erro, devolve NULL.
  */
-struct data_t *rtable_get(struct rtable_t *rtable, char *key){
-    if (rtable == NULL || key == NULL){
+struct data_t *rtable_get(char *key){
+    if (tail == NULL || key == NULL){
         return NULL;
     }
     struct _MessageT request;
@@ -155,7 +303,7 @@ struct data_t *rtable_get(struct rtable_t *rtable, char *key){
         return NULL;
     }
 
-    struct message_t *response = network_send_receive(rtable, req);
+    struct message_t *response = network_send_receive(tail, req);
     if (response == NULL || response->opcode == MESSAGE_T__OPCODE__OP_ERROR){
         free_message_t(response);
         return NULL;
@@ -176,8 +324,8 @@ struct data_t *rtable_get(struct rtable_t *rtable, char *key){
  * toda a memoria alocada na respetiva operação rtable_put().
  * Devolve: 0 (ok), -1 (key not found ou problemas).
  */
-int rtable_del(struct rtable_t *rtable, char *key){
-    if (rtable == NULL || key == NULL){
+int rtable_del(char *key){
+    if (head == NULL || key == NULL){
         return -1;
     }
 
@@ -203,7 +351,7 @@ int rtable_del(struct rtable_t *rtable, char *key){
         return -1;
     }
 
-    struct message_t *response = network_send_receive(rtable, req);
+    struct message_t *response = network_send_receive(head, req);
     if (response == NULL || response->opcode == MESSAGE_T__OPCODE__OP_ERROR){
         free_message_t(response);
         return -1;
@@ -215,8 +363,8 @@ int rtable_del(struct rtable_t *rtable, char *key){
 
 /* Devolve o número de elementos contidos na tabela.
  */
-int rtable_size(struct rtable_t *rtable){
-    if (rtable == NULL){
+int rtable_size(){
+    if (tail == NULL){
         return -1;
     }
 
@@ -238,7 +386,7 @@ int rtable_size(struct rtable_t *rtable){
         return -1;
     }
 
-    struct message_t *response = network_send_receive(rtable, req);
+    struct message_t *response = network_send_receive(tail, req);
     if(response == NULL){
         free_message_t(response);
         return -1;
@@ -253,8 +401,8 @@ int rtable_size(struct rtable_t *rtable){
 /* Devolve um array de char* com a cópia de todas as keys da tabela,
  * colocando um último elemento a NULL.
  */
-char **rtable_get_keys(struct rtable_t *rtable){
-    if (rtable == NULL){
+char **rtable_get_keys(){
+    if (tail == NULL){
         return NULL;
     }
 
@@ -276,7 +424,7 @@ char **rtable_get_keys(struct rtable_t *rtable){
         return NULL;
     }
 
-    struct message_t *response = network_send_receive(rtable, req);
+    struct message_t *response = network_send_receive(tail, req);
     if (response == NULL || response->opcode == MESSAGE_T__OPCODE__OP_ERROR){
         free_message_t(response);
         return NULL;
@@ -305,8 +453,8 @@ void rtable_free_keys(char **keys){
 
 /* Verifica se a operação identificada por op_n foi executada.
 */
-int rtable_verify(struct rtable_t *rtable, int op_n){
-    if (rtable == NULL){
+int rtable_verify(int op_n){
+    if (tail == NULL){
         return -1;
     }
 
@@ -329,7 +477,7 @@ int rtable_verify(struct rtable_t *rtable, int op_n){
         return -1;
     }
 
-    struct message_t *response = network_send_receive(rtable, req);
+    struct message_t *response = network_send_receive(tail, req);
     if (response == NULL || response->opcode == MESSAGE_T__OPCODE__OP_ERROR){
         free_message_t(response);
         return -1;
@@ -341,5 +489,20 @@ int rtable_verify(struct rtable_t *rtable, int op_n){
     } else {
         free_message_t(response);
         return -1;
+    }
+}
+
+
+void ordenaChildren(struct String_vector *children_list){
+    char temp[50];
+
+    for (int i = 0; i < children_list->count; ++i) {
+        for (int j = i + 1; j < children_list->count; ++j) {
+            if (strcmp(children_list->data[i], children_list->data[j]) > 0) {
+                strcpy(temp, children_list->data[i]);
+                strcpy(children_list->data[i], children_list->data[j]);
+                strcpy(children_list->data[j], temp);
+            }
+        }
     }
 }

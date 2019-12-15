@@ -133,7 +133,7 @@ int table_skel_init(char* port,int n_lists, char* ipZoo){
 	    }
 	    fprintf(stderr, "\n=== znode listing === [ %s ]", root_path); 
 
-        compareFunction(children_list);
+        ordenaChildren(children_list);
 	    for (int i = 0; i < children_list->count; i++)  {
 		    fprintf(stderr, "\n(%d): %s\n", i+1, children_list->data[i]);
             printf("data no children: %s\n", children_list->data[i]);
@@ -168,6 +168,9 @@ void table_skel_destroy(){
 		exit(EXIT_FAILURE);
 	}
     free_message_t(mensagem);
+    if(server->sockfd!=-1){
+        close(server->sockfd);
+    }
     
     if (ZOK != zoo_delete(server->zh, server->id, -1)) {
  		fprintf(stderr, "Error deleting node %s!\n", server->id);
@@ -425,7 +428,7 @@ static void child_watcher(zhandle_t *wzh, int type, int state, const char *zpath
 			fprintf(stderr, "\n=== znode listing === [ %s ]", root_path); 
 
             int indice=-1;
-            compareFunction(children_list);
+            ordenaChildren(children_list);
 			for (int i = 0; i < children_list->count; i++)  {
 				fprintf(stderr, "\n(%d): %s", i+1, children_list->data[i]);
                 char p[120] = "";
@@ -475,7 +478,7 @@ static void child_watcher(zhandle_t *wzh, int type, int state, const char *zpath
 	 free(children_list);
 }
 
-void compareFunction(struct String_vector *children_list){
+void ordenaChildren(struct String_vector *children_list){
      char temp[50];
 
       for (int i = 0; i < children_list->count; ++i) {

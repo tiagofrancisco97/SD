@@ -9,7 +9,6 @@
 #include <signal.h>
 #include <zookeeper/zookeeper.h>
 #include <inet.h>
-
 #include "client_stub-private.h"
 #include "client_stub.h"
 #include "network_client.h"
@@ -26,15 +25,12 @@ int main(int argc, char **argv){
         printf("Exemplo de uso: ./binary/table-client 127.0.0.1:50000\n");
         return -1;
     }
-    printf("Antes de estabelecer a ligação ao servidor.\n");
 
     host_port = argv[1];
     if ((zh = zookeeper_connect(host_port) == -1)){
       printf("Error connecting to zookeeper\n");
       return -1;
     }
-
-    printf("Após estabelecer a ligação ao servidor.\n");
 
     char *token = "";
 
