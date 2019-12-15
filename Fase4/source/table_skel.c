@@ -71,7 +71,6 @@ int table_skel_init(char* port,int n_lists, char* ipZoo){
     if (hostname == -1) { 
         perror("gethostname"); 
     } 
-  
     
     host_entry = gethostbyname(hostbuffer); 
     if (host_entry == NULL) { 
@@ -101,10 +100,9 @@ int table_skel_init(char* port,int n_lists, char* ipZoo){
 	}
     sleep(3);
     if (is_connected) {
-       
 		if (ZNONODE == zoo_exists(server->zh, root_path, 0, NULL)) {
             //criar /chain se nao existir
-			if (ZOK != zoo_create(server->zh, root_path, NULL, -1, & ZOO_CREATOR_ALL_ACL, 0, NULL, 0)) {
+			if (ZOK != zoo_create(server->zh, root_path, NULL, -1, &ZOO_OPEN_ACL_UNSAFE, 0, NULL, 0)) {
 			    fprintf(stderr, "Error creating znode from path %s!\n", root_path);
 			    exit(EXIT_FAILURE);
 		    }
@@ -136,17 +134,15 @@ int table_skel_init(char* port,int n_lists, char* ipZoo){
         ordenaChildren(children_list);
 	    for (int i = 0; i < children_list->count; i++)  {
 		    fprintf(stderr, "\n(%d): %s\n", i+1, children_list->data[i]);
-            printf("data no children: %s\n", children_list->data[i]);
 	    }
         
         server->idNext=NULL;
         server->sockfd=-1;
 
-        printf("id do atual=%s\n", server->id);
         if(server->idNext==NULL){
-            printf("id do next esta a null\n");
+            printf("\nId do next servidor esta a null\n");
         }else{
-            printf("id do next=%s\n", server->idNext);
+            printf("\nId do next servidor %s\n", server->idNext);
         }
 
         fprintf(stderr, "\n=== done ===\n");
@@ -403,7 +399,6 @@ int insereTask(int op,char* key, char *data){
 * Watcher function for connection state change events
 */
 void connection_watcher(zhandle_t *zzh, int type, int state, const char *path, void* context) {
-    printf("path=%s\n", path);
 	if (type == ZOO_SESSION_EVENT) {
 		if (state == ZOO_CONNECTED_STATE) {
 			is_connected = 1; 
@@ -537,6 +532,5 @@ void envia(){
         perror("Erro ao enviar dados ao servidor");
         close(server->sockfd);
     }
-
     free(buf);
 }
